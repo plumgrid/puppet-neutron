@@ -249,13 +249,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
                 router_db = self._get_router(context, device_id)
             else:
                 router_db = None
-            try:
-                LOG.debug(_("PLUMgrid Library: create_port() called"))
-                self._plumlib.update_port(port_db, router_db)
-
-            except Exception as err_message:
-                LOG.error(err_message)
-                raise plum_excep.PLUMgridException(err_msg=err_message)
 
             if (self._check_update_deletes_security_groups(port) or
                     self._check_update_has_security_groups(port)):
@@ -269,6 +262,14 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
             self._process_portbindings_create_and_update(context,
                                                          port['port'],
                                                          port_db)
+
+            try:
+                LOG.debug(_("PLUMgrid Library: create_port() called"))
+                self._plumlib.update_port(port_db, router_db)
+
+            except Exception as err_message:
+                LOG.error(err_message)
+                raise plum_excep.PLUMgridException(err_msg=err_message)
 
         # Plugin DB - Port Update
         return self._port_viftype_binding(context, port_db)
