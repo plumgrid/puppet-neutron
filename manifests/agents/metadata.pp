@@ -92,6 +92,7 @@ class neutron::agents::metadata (
     'DEFAULT/nova_metadata_port':             value => $metadata_port;
     'DEFAULT/metadata_proxy_shared_secret':   value => $shared_secret;
     'DEFAULT/metadata_workers':               value => $metadata_workers;
+    'DEFAULT/metadata_proxy_socket':          value =>'$state_path/metadata_proxy';
   }
 
   if $auth_ca_cert {

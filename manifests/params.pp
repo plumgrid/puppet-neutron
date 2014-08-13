@@ -14,6 +14,10 @@ class neutron::params {
     $ovs_server_package  = 'openstack-neutron-openvswitch'
     $ovs_cleanup_service = 'neutron-ovs-cleanup'
 
+    $plumgrid_plugin_package = 'openstack-neutron-plumgrid'
+    $plumgrid_pythonlib_package = 'plumgrid-pythonlib'
+    $plumgrid_config_file = '/etc/neutron/plugins/plumgrid/plumgrid.ini'
+
     $linuxbridge_agent_package  = false
     $linuxbridge_agent_service  = 'neutron-linuxbridge-agent'
     $linuxbridge_server_package = 'openstack-neutron-linuxbridge'
@@ -63,6 +67,10 @@ class neutron::params {
     $ovs_agent_service   = 'neutron-plugin-openvswitch-agent'
     $ovs_server_package  = 'neutron-plugin-openvswitch'
     $ovs_cleanup_service = false
+
+    $plumgrid_plugin_package = 'neutron-plugin-plumgrid'
+    $plumgrid_pythonlib_package = 'plumgrid-pythonlib'
+    $plumgrid_config_file = '/etc/neutron/plugins/plumgrid/plumgrid.ini'
 
     $linuxbridge_agent_package  = 'neutron-plugin-linuxbridge-agent'
     $linuxbridge_agent_service  = 'neutron-plugin-linuxbridge-agent'
