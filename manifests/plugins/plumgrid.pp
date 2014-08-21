@@ -57,8 +57,14 @@ class neutron::plugins::plumgrid (
       $plumlib_path = '/usr/share/pyshared/neutron/plugins/plumgrid/drivers/plumlib.py'
       $plumgrid_plugin_path = '/usr/share/pyshared/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py' 
    } elsif $::osfamily == 'Redhat' {
-      $plumlib_path = '/usr/lib/python2.6/site-packages/neutron/plugins/plumgrid/drivers/plumlib.py'
-      $plumgrid_plugin_path = '/usr/lib/python2.6/site-packages/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py'
+      if $::operatingsystemrelease == '7.0' {
+        $plumlib_path = '/usr/lib/python2.7/site-packages/neutron/plugins/plumgrid/drivers/plumlib.py'
+        $plumgrid_plugin_path = '/usr/lib/python2.7/site-packages/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py'
+      } 
+      else {
+        $plumlib_path = '/usr/lib/python2.6/site-packages/neutron/plugins/plumgrid/drivers/plumlib.py'
+        $plumgrid_plugin_path = '/usr/lib/python2.6/site-packages/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py'
+      }
    }
    else {
       warning('Unknown operating system, skipping PLUMgrid plugin patch')
