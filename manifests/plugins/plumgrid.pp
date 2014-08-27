@@ -110,8 +110,9 @@ class neutron::plugins::plumgrid (
     'PLUMgridMetadata/metadata_mode':         value => 'tunnel';
     }
     file_line {'/etc/sudoers.d/neutron_sudoers':
+      path    => '/etc/sudoers.d/neutron_sudoers',
       ensure  => present,
-      line    => 'ALL=(ALL) NOPASSWD:ALL',
+      line    => "neutron ALL = (ALL) NOPASSWD:ALL",
       require => Package['neutron-server'],
       notify  => Service['neutron-server'],
     }
