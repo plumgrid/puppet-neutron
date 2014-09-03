@@ -113,8 +113,8 @@ class neutron::plugins::plumgrid (
       path    => '/etc/sudoers.d/neutron_sudoers',
       ensure  => present,
       line    => "neutron ALL = (ALL) NOPASSWD:ALL",
-      require => Package['neutron-server'],
-      notify  => Service['neutron-server'],
+      require => Package[$::neutron::params::package_name],
+      notify  => Service[$::neutron::params::server_service],
     }
    }
 }
