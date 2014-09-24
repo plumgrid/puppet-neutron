@@ -57,7 +57,7 @@ class neutron::plugins::plumgrid (
       $plumlib_path = '/usr/share/pyshared/neutron/plugins/plumgrid/drivers/plumlib.py'
       $plumgrid_plugin_path = '/usr/share/pyshared/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py' 
    } elsif $::osfamily == 'Redhat' {
-      if $::operatingsystemrelease == '7.0' {
+      if $::operatingsystemmajrelease >= 7 {
         $plumlib_path = '/usr/lib/python2.7/site-packages/neutron/plugins/plumgrid/drivers/plumlib.py'
         $plumgrid_plugin_path = '/usr/lib/python2.7/site-packages/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py'
       } 
