@@ -113,6 +113,14 @@ class neutron::plugins::plumgrid (
     neutron_plumlib_plumgrid {
     'PLUMgridLibrary/fabric_eth':             value => $fabric_eth;
     'PLUMgridMetadata/enable_pg_metadata' :   value => 'True';
-  }
+    'PLUMgridMetadata/metadata_mode':         value => 'tunnel';
+    }
+    file_line { $::neutron::params::neutron_sudoers_file :
+      path    => $::neutron::params::neutron_sudoers_file,
+      ensure  => present,
+      line    => "neutron ALL = (ALL) NOPASSWD:ALL",
+      require => Package[$::neutron::params::package_name],
+      notify  => Service[$::neutron::params::server_service],
+    }
    }
 }
