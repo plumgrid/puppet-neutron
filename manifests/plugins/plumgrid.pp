@@ -2,16 +2,16 @@
 # === Parameters
 #
 class neutron::plugins::plumgrid (
-  $package_ensure       = 'installed',
-  $connection           = undef,
-  $pg_director_server   = undef,
-  $pg_director_server_port = undef,
-  $pg_username          = undef,
-  $pg_password          = undef,
-  $pg_servertimeout     = undef,
-  $enable_metadata_agent = false,
-  $fabric_eth            = 'eth1'
-
+  $package_ensure           = 'installed',
+  $pg_connection            = undef,
+  $pg_director_server       = undef,
+  $pg_director_server_port  = undef,
+  $pg_username              = undef,
+  $pg_password              = undef,
+  $pg_servertimeout         = undef,
+  $pg_enable_metadata_agent = false,
+  $admin_password           = undef,
+  $metadata_proxy_secret    = undef,
 ) {
 
   include neutron::params
@@ -88,7 +88,7 @@ class neutron::plugins::plumgrid (
     'PLUMgridDirector/username': value => $pg_username;
     'PLUMgridDirector/password': value => $pg_password;
     'PLUMgridDirector/servertimeout': value => $pg_servertimeout;
-    'database/connection': value => $connection;
+    'database/connection': value => $pg_connection;
   }
 
   if $::osfamily == 'Redhat' {
@@ -99,10 +99,26 @@ class neutron::plugins::plumgrid (
     }
   }
 
-  if $enable_metadata_agent {
+  if $pg_enable_metadata_agent {
+    if $::operatingsystem == 'CentOS' {
+      $auth_region = 'openstack'
+    }
+    else {
+      $auth_region = 'RegionOne'
+    }
+
+    class { '::neutron::agents::metadata' :
+      auth_password => $admin_password,
+      shared_secret => $metadata_proxy_secret,
+      auth_tenant   => 'admin',
+      auth_user     => 'admin',
+      auth_region   => $auth_region,
+    }
+
     file { [ "/etc/neutron/rootwrap.d" ]:
           ensure => directory,
     }
+
     file {'/etc/neutron/rootwrap.d/plumlib.filters':
       owner => root,
       group => root,
@@ -110,11 +126,12 @@ class neutron::plugins::plumgrid (
       content => template('neutron/plumlib.filters.erb'),
       require => File['/etc/neutron/rootwrap.d'],
     }
+
     neutron_plumlib_plumgrid {
-    'PLUMgridLibrary/fabric_eth':             value => $fabric_eth;
     'PLUMgridMetadata/enable_pg_metadata' :   value => 'True';
-    'PLUMgridMetadata/metadata_mode':         value => 'tunnel';
+    'PLUMgridMetadata/metadata_mode':         value => 'local';
     }
+
     file_line { $::neutron::params::neutron_sudoers_file :
       path    => $::neutron::params::neutron_sudoers_file,
       ensure  => present,
@@ -122,5 +139,10 @@ class neutron::plugins::plumgrid (
       require => Package[$::neutron::params::package_name],
       notify  => Service[$::neutron::params::server_service],
     }
-   }
+  }
+  else {
+    neutron_plumlib_plumgrid {
+    'PLUMgridMetadata/enable_pg_metadata' :   value => 'False';
+    }
+  }
 }
