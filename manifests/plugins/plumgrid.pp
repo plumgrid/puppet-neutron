@@ -12,6 +12,7 @@ class neutron::plugins::plumgrid (
   $pg_enable_metadata_agent = false,
   $admin_password           = undef,
   $metadata_proxy_secret    = undef,
+  $controller_priv_host     = undef,
 ) {
 
   include neutron::params
@@ -89,6 +90,12 @@ class neutron::plugins::plumgrid (
     'PLUMgridDirector/password': value => $pg_password;
     'PLUMgridDirector/servertimeout': value => $pg_servertimeout;
     'database/connection': value => $pg_connection;
+  }
+  neutron_plumlib_plumgrid {
+    'Keystone/os_username' : value => 'admin';
+    'Keystone/os_password': value => $admin_password;
+    'Keystone/os_auth_url': value => "http://$controller_priv_host:35357/v2.0";
+    'Keystone/os_tenant_name': value => 'admin';
   }
 
   if $::osfamily == 'Redhat' {
