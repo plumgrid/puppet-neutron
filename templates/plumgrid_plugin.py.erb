@@ -96,7 +96,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
         self._plumlib.director_conn(director_plumgrid, director_port, timeout,
                                     director_admin, director_password)
 
-    @utils.synchronized('plumlib', external=True)
     def create_network(self, context, network):
         """Create Neutron network.
 
@@ -127,7 +126,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
         # Return created network
         return net_db
 
-    @utils.synchronized('plumlib', external=True)
     def update_network(self, context, net_id, network):
         """Update Neutron network.
 
@@ -155,7 +153,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
         # Return updated network
         return net_db
 
-    @utils.synchronized('plumlib', external=True)
     def delete_network(self, context, net_id):
         """Delete Neutron network.
 
@@ -179,7 +176,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
                 LOG.error(err_message)
                 raise plum_excep.PLUMgridException(err_msg=err_message)
 
-    @utils.synchronized('plumlib', external=True)
     def create_port(self, context, port):
         """Create Neutron port.
 
@@ -231,7 +227,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
         # Plugin DB - Port Create and Return port
         return self._port_viftype_binding(context, port_db)
 
-    @utils.synchronized('plumlib', external=True)
     def update_port(self, context, port_id, port):
         """Update Neutron port.
 
@@ -274,7 +269,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
         # Plugin DB - Port Update
         return self._port_viftype_binding(context, port_db)
 
-    @utils.synchronized('plumlib', external=True)
     def delete_port(self, context, port_id, l3_port_check=True):
         """Delete Neutron port.
 
@@ -320,7 +314,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
                 self._port_viftype_binding(context, port_db)
         return [self._fields(port, fields) for port in ports_db]
 
-    @utils.synchronized('plumlib', external=True)
     def create_subnet(self, context, subnet):
         """Create Neutron subnet.
 
@@ -361,7 +354,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
 
         return sub_db
 
-    @utils.synchronized('plumlib', external=True)
     def delete_subnet(self, context, subnet_id):
         """Delete subnet core Neutron API."""
 
@@ -383,7 +375,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
                 LOG.error(err_message)
                 raise plum_excep.PLUMgridException(err_msg=err_message)
 
-    @utils.synchronized('plumlib', external=True)
     def update_subnet(self, context, subnet_id, subnet):
         """Update subnet core Neutron API."""
 
@@ -408,7 +399,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
 
         return new_sub_db
 
-    @utils.synchronized('plumlib', external=True)
     def create_router(self, context, router):
         """
         Create router extension Neutron API
@@ -451,7 +441,6 @@ class NeutronPluginPLUMgridV2(db_base_plugin_v2.NeutronDbPluginV2,
         # Return updated router
         return router_db
 
-    @utils.synchronized('plumlib', external=True)
     def delete_router(self, context, router_id):
         LOG.debug(_("Neutron PLUMgrid Director: delete_router() called"))
 
