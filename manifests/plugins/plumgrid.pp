@@ -20,8 +20,7 @@ class neutron::plugins::plumgrid (
   Package['neutron'] -> Package[$::neutron::params::plumgrid_plugin_package]
   Package[$::neutron::params::plumgrid_plugin_package] -> Neutron_plugin_plumgrid<||>
   Neutron_plugin_plumgrid<||> ~> Service<| title == 'neutron-server' |>
-  Package[$::neutron::params::plumgrid_plugin_package] -> File['remove plumgrid.ini']
-  File['remove plumgrid.ini'] -> Service<| title == 'neutron-server' |>
+  Package[$::neutron::params::plumgrid_plugin_package] ~> Service<| title == 'neutron-server' |>
   Package[$::neutron::params::plumgrid_plugin_package] -> Package[$::neutron::params::plumgrid_pythonlib_package]
   Package[$::neutron::params::plumgrid_pythonlib_package] -> Neutron_plumlib_plumgrid<||>
   Neutron_plumlib_plumgrid<||> ~> Service<| title == 'neutron-server' |>
@@ -46,12 +45,6 @@ class neutron::plugins::plumgrid (
     ensure  => $package_ensure,
     name    => $::neutron::params::plumgrid_pythonlib_package,
     configfiles => replace,
-  }
-
-  file { 'remove plumgrid.ini':
-      path => '/etc/neutron/plugins/plumgrid/plumgrid.ini',
-      ensure => absent,
-      require => [Package[$::neutron::params::plumgrid_plugin_package] ],
   }
 
    if $::osfamily == 'Debian' {
