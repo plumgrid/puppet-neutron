@@ -24,6 +24,7 @@ class neutron::plugins::plumgrid (
   Package[$::neutron::params::plumgrid_plugin_package] -> Package[$::neutron::params::plumgrid_pythonlib_package]
   Package[$::neutron::params::plumgrid_pythonlib_package] -> Neutron_plumlib_plumgrid<||>
   Neutron_plumlib_plumgrid<||> ~> Service<| title == 'neutron-server' |>
+  Neutron_plumlib_plumgrid<||> -> Exec['sync-default-sec-grp']
 
   if $::osfamily == 'Debian' {
     file_line { '/etc/default/neutron-server:NEUTRON_PLUGIN_CONFIG':
@@ -45,6 +46,12 @@ class neutron::plugins::plumgrid (
     ensure  => $package_ensure,
     name    => $::neutron::params::plumgrid_pythonlib_package,
     configfiles => replace,
+  }
+
+  exec { 'sync-default-sec-grp':
+    command     => 'neutron security-group-delete default',
+    path        => '/usr/bin',
+    refreshonly => true,
   }
 
    if $::osfamily == 'Debian' {
