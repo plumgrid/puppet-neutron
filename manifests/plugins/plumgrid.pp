@@ -85,10 +85,10 @@ class neutron::plugins::plumgrid (
     'database/connection': value => $pg_connection;
   }
   neutron_plumlib_plumgrid {
-    'Keystone/os_username' : value => 'admin';
-    'Keystone/os_password': value => $admin_password;
-    'Keystone/os_auth_url': value => "http://$controller_priv_host:35357/v2.0";
-    'Keystone/os_tenant_name': value => 'admin';
+    'keystone_authtoken/admin_user' : value => 'admin';
+    'keystone_authtoken/admin_password': value => $admin_password;
+    'keystone_authtoken/auth_uri': value => "http://$controller_priv_host:35357/v2.0";
+    'keystone_authtoken/admin_tenant_name': value => 'admin';
   }
 
   if $::osfamily == 'Redhat' {
