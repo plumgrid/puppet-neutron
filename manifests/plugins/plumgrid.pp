@@ -11,7 +11,6 @@ class neutron::plugins::plumgrid (
   $pg_servertimeout         = undef,
   $pg_enable_metadata_agent = false,
   $admin_password           = undef,
-  $metadata_proxy_secret    = undef,
   $controller_priv_host     = undef,
 ) {
 
@@ -107,21 +106,6 @@ class neutron::plugins::plumgrid (
   }
 
   if $pg_enable_metadata_agent {
-    if $::operatingsystem == 'CentOS' {
-      $auth_region = 'openstack'
-    }
-    else {
-      $auth_region = 'RegionOne'
-    }
-
-    class { '::neutron::agents::metadata' :
-      auth_password => $admin_password,
-      shared_secret => $metadata_proxy_secret,
-      auth_tenant   => 'admin',
-      auth_user     => 'admin',
-      auth_region   => $auth_region,
-    }
-
     file { [ "/etc/neutron/rootwrap.d" ]:
           ensure => directory,
     }
