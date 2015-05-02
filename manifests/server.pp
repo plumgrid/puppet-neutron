@@ -116,6 +116,13 @@
 #   The parent process manages them.
 #   Defaults to: 0
 #
+# [*rpc_workers*]
+#   (optional) Number of separate RPC worker processes to spawn.
+#   The default, 0, runs the worker thread in the current process.
+#   Greater than 0 launches that number of child processes as workers.
+#   The parent process manages them.
+#   Defaults to: 0
+#
 # [*agent_down_time*]
 #   (optional) Seconds to regard the agent as down; should be at least twice
 #   report_interval, to be sure the agent is down for good.
@@ -153,6 +160,7 @@ class neutron::server (
   $database_retry_interval = 10,
   $sync_db                 = false,
   $api_workers             = '0',
+  $rpc_workers             = '0',
   $agent_down_time         = '75',
   $router_scheduler_driver = 'neutron.scheduler.l3_agent_scheduler.ChanceScheduler',
   $mysql_module            = '0.9',
@@ -269,9 +277,10 @@ class neutron::server (
 
   neutron_config {
     'DEFAULT/api_workers':             value => $api_workers;
+    'DEFAULT/rpc_workers':             value => $rpc_workers;
     'DEFAULT/agent_down_time':         value => $agent_down_time;
     'DEFAULT/router_scheduler_driver': value => $router_scheduler_driver;
-    'database/connection':             value => $database_connection_real;
+    'database/connection':             value => $database_connection_real, secret => true;
     'database/idle_timeout':           value => $database_idle_timeout_real;
     'database/retry_interval':         value => $database_retry_interval_real;
     'database/max_retries':            value => $database_max_retries_real;
@@ -303,7 +312,7 @@ class neutron::server (
         'keystone_authtoken/auth_protocol':     value => $auth_protocol;
         'keystone_authtoken/admin_tenant_name': value => $auth_tenant;
         'keystone_authtoken/admin_user':        value => $auth_user;
-        'keystone_authtoken/admin_password':    value => $auth_password;
+        'keystone_authtoken/admin_password':    value => $auth_password, secret => true;
       }
 
       neutron_api_config {
@@ -312,7 +321,7 @@ class neutron::server (
         'filter:authtoken/auth_protocol':     value => $auth_protocol;
         'filter:authtoken/admin_tenant_name': value => $auth_tenant;
         'filter:authtoken/admin_user':        value => $auth_user;
-        'filter:authtoken/admin_password':    value => $auth_password;
+        'filter:authtoken/admin_password':    value => $auth_password, secret => true;
       }
 
       if $auth_admin_prefix {

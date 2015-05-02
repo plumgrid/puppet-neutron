@@ -84,17 +84,10 @@
 #   Default to empty.
 #
 # [*enable_security_group*]
-#   (optionnal) Enable the security group API or not.
-#   Since the ML2 plugin can concurrently support different L2 agents (or other
-#   mechanisms) with different configurations, we need to set something to the
-#   firewall_driver flag to enable security group API.
-#   Defaults to false.
-#
-# [*firewall_driver*]
-#   (optionnal) Set a firewall driver value.
-#   If enable_security_group is enabled, it should be either true or a custom
-#   firewall driver.
+#   (optional) Controls if neutron security group is enabled or not.
+#   It should be false when you use nova security group.
 #   Defaults to true.
+#
 
 class neutron::plugins::ml2 (
   $type_drivers          = ['local', 'flat', 'vlan', 'gre', 'vxlan'],
@@ -105,38 +98,49 @@ class neutron::plugins::ml2 (
   $tunnel_id_ranges      = ['20:100'],
   $vxlan_group           = '224.0.0.1',
   $vni_ranges            = ['10:100'],
-  $enable_security_group = false,
-  $firewall_driver       = true
+  $enable_security_group = true,
+  $package_ensure        = 'present',
+  # DEPRECATED PARAMS
+  $firewall_driver       = undef,
 ) {
 
   include neutron::params
 
-  # test mechanism drivers
+  Neutron_plugin_ml2<||> ~> Service<| title == 'neutron-server' |>
+
   validate_array($mechanism_drivers)
   if ! $mechanism_drivers {
     warning('Without networking mechanism driver, ml2 will not communicate with L2 agents')
   }
 
-  # Some platforms do not have a dedicated ml2 plugin package
+  if $::osfamily == 'Debian' {
+    file_line { '/etc/default/neutron-server:NEUTRON_PLUGIN_CONFIG':
+      path    => '/etc/default/neutron-server',
+      match   => '^NEUTRON_PLUGIN_CONFIG=(.*)$',
+      line    => 'NEUTRON_PLUGIN_CONFIG=/etc/neutron/plugin.ini',
+      require => File['/etc/neutron/plugin.ini'],
+    }
+    File_line['/etc/default/neutron-server:NEUTRON_PLUGIN_CONFIG']
+    ~> Service<| title == 'neutron-server' |>
+  }
+
   # In RH, the link is used to start Neutron process but in Debian, it's used only
   # to manage database synchronization.
+  file {'/etc/neutron/plugin.ini':
+    ensure  => link,
+    target  => '/etc/neutron/plugins/ml2/ml2_conf.ini'
+  }
+
+  # Some platforms do not have a dedicated ml2 plugin package
   if $::neutron::params::ml2_server_package {
     package { 'neutron-plugin-ml2':
-      ensure => present,
+      ensure => $package_ensure,
       name   => $::neutron::params::ml2_server_package,
     }
     Package['neutron-plugin-ml2'] -> Neutron_plugin_ml2<||>
-    file {'/etc/neutron/plugin.ini':
-      ensure  => link,
-      target  => '/etc/neutron/plugins/ml2/ml2_conf.ini',
-      require => Package['neutron-plugin-ml2']
-    }
+    Package['neutron-plugin-ml2'] -> File['/etc/neutron/plugin.ini']
   } else {
-      file {'/etc/neutron/plugin.ini':
-        ensure  => link,
-        target  => '/etc/neutron/plugins/ml2/ml2_conf.ini',
-        require => Package['neutron']
-      }
+    Package['neutron'] -> File['/etc/neutron/plugin.ini']
   }
 
   neutron::plugins::ml2::driver { $type_drivers:
@@ -147,7 +151,6 @@ class neutron::plugins::ml2 (
     vxlan_group         => $vxlan_group,
   }
 
-  # Configure ml2_conf.ini
   neutron_plugin_ml2 {
     'ml2/type_drivers':                     value => join($type_drivers, ',');
     'ml2/tenant_network_types':             value => join($tenant_network_types, ',');
@@ -155,53 +158,7 @@ class neutron::plugins::ml2 (
     'securitygroup/enable_security_group':  value => $enable_security_group;
   }
 
-  # Specific plugin configuration
-  if ('openvswitch' in $mechanism_drivers) {
-    if ($::osfamily == 'RedHat') {
-      ensure_resource('package', 'neutron-plugin-ovs', {
-        ensure => present,
-        name   => $::neutron::params::ovs_server_package,
-      })
-      Package['neutron-plugin-ovs'] -> Neutron_plugin_ovs<||>
-    }
-    if ('l2population' in $mechanism_drivers) {
-      neutron_plugin_ovs {
-        'agent/l2_population': value => true;
-      }
-    } else {
-      neutron_plugin_ovs {
-        'agent/l2_population': value => false;
-      }
-    }
+  if $firewall_driver {
+    warning('firewall_driver value is set in ::neutron::agents::ml2::ovs, argument ignored.')
   }
-  if ('linuxbridge' in $mechanism_drivers) {
-    if ($::osfamily == 'RedHat') {
-      package { 'neutron-plugin-linuxbridge':
-        ensure => present,
-        name   => $::neutron::params::linuxbridge_server_package,
-      }
-      Package['neutron-plugin-linuxbridge'] -> Neutron_plugin_linuxbridge<||>
-    }
-    if ('l2population' in $mechanism_drivers) {
-      neutron_plugin_linuxbridge {
-        'vxlan/enable_vxlan':  value => true;
-        'vxlan/l2_population': value => true;
-      }
-    } else {
-      neutron_plugin_linuxbridge {
-        'vxlan/l2_population': value => false;
-      }
-    }
-  }
-
-  if $enable_security_group {
-    neutron_plugin_ml2 {
-      'securitygroup/firewall_driver': value => $firewall_driver;
-    }
-  } else {
-    neutron_plugin_ml2 {
-      'securitygroup/firewall_driver': value => 'neutron.agent.firewall.NoopFirewallDriver';
-    }
-  }
-
 }

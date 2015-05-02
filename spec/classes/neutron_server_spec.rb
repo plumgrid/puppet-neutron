@@ -25,6 +25,7 @@ describe 'neutron::server' do
       :database_retry_interval => '10',
       :sync_db                 => false,
       :api_workers             => '0',
+      :rpc_workers             => '0',
       :agent_down_time         => '75',
       :router_scheduler_driver => 'neutron.scheduler.l3_agent_scheduler.ChanceScheduler',
       :mysql_module            => '0.9'}
@@ -37,6 +38,7 @@ describe 'neutron::server' do
 
     it 'should perform default database configuration of' do
       should contain_neutron_config('database/connection').with_value(p[:database_connection])
+      should contain_neutron_config('database/connection').with_secret( true )
       should contain_neutron_config('database/max_retries').with_value(p[:database_max_retries])
       should contain_neutron_config('database/idle_timeout').with_value(p[:database_idle_timeout])
       should contain_neutron_config('database/retry_interval').with_value(p[:database_retry_interval])
@@ -50,6 +52,7 @@ describe 'neutron::server' do
       should contain_neutron_api_config('filter:authtoken/admin_tenant_name').with_value(p[:auth_tenant]);
       should contain_neutron_api_config('filter:authtoken/admin_user').with_value(p[:auth_user]);
       should contain_neutron_api_config('filter:authtoken/admin_password').with_value(p[:auth_password]);
+      should contain_neutron_api_config('filter:authtoken/admin_password').with_secret( true )
       should contain_neutron_api_config('filter:authtoken/auth_admin_prefix').with(:ensure => 'absent')
       should contain_neutron_api_config('filter:authtoken/auth_uri').with_value("http://localhost:5000/");
     end
@@ -79,9 +82,10 @@ describe 'neutron::server' do
       should contain_neutron_api_config('filter:authtoken/auth_admin_prefix').with(
         :ensure => 'absent'
       )
-      should contain_neutron_config('DEFAULT/api_workers').with_value('0')
-      should contain_neutron_config('DEFAULT/agent_down_time').with_value('75')
-      should contain_neutron_config('DEFAULT/router_scheduler_driver').with_value('neutron.scheduler.l3_agent_scheduler.ChanceScheduler')
+      should contain_neutron_config('DEFAULT/api_workers').with_value(p[:api_workers])
+      should contain_neutron_config('DEFAULT/rpc_workers').with_value(p[:rpc_workers])
+      should contain_neutron_config('DEFAULT/agent_down_time').with_value(p[:agent_down_time])
+      should contain_neutron_config('DEFAULT/router_scheduler_driver').with_value(p[:router_scheduler_driver])
     end
 
     context 'with manage_service as false' do

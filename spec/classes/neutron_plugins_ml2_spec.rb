@@ -37,8 +37,7 @@ describe 'neutron::plugins::ml2' do
       :tunnel_id_ranges      => ['20:100'],
       :vxlan_group           => '224.0.0.1',
       :vni_ranges            => ['10:100'],
-      :enable_security_group => false,
-      :firewall_driver       => true }
+      :package_ensure        => 'present' }
   end
 
   let :params do
@@ -52,7 +51,7 @@ describe 'neutron::plugins::ml2' do
 
     it { should contain_class('neutron::params') }
 
-    it 'configure neutron.conf' do
+    it 'configures neutron.conf' do
         should contain_neutron_config('DEFAULT/core_plugin').with_value('neutron.plugins.ml2.plugin.Ml2Plugin')
     end
 
@@ -60,11 +59,9 @@ describe 'neutron::plugins::ml2' do
       should contain_neutron_plugin_ml2('ml2/type_drivers').with_value(p[:type_drivers].join(','))
       should contain_neutron_plugin_ml2('ml2/tenant_network_types').with_value(p[:tenant_network_types].join(','))
       should contain_neutron_plugin_ml2('ml2/mechanism_drivers').with_value(p[:mechanism_drivers].join(','))
-      should contain_neutron_plugin_ml2('securitygroup/enable_security_group').with_value('false')
-      should contain_neutron_plugin_ml2('securitygroup/firewall_driver').with_value('neutron.agent.firewall.NoopFirewallDriver')
     end
 
-    it 'should create plugin symbolic link' do
+    it 'creates plugin symbolic link' do
       should contain_file('/etc/neutron/plugin.ini').with(
         :ensure  => 'link',
         :target  => '/etc/neutron/plugins/ml2/ml2_conf.ini'
@@ -75,27 +72,18 @@ describe 'neutron::plugins::ml2' do
       if platform_params.has_key?(:ml2_server_package)
         should contain_package('neutron-plugin-ml2').with(
           :name   => platform_params[:ml2_server_package],
-          :ensure => 'present'
+          :ensure => p[:package_ensure]
         )
         should contain_package('neutron-plugin-ml2').with_before(/Neutron_plugin_ml2\[.+\]/)
       end
-    end
-
-    it 'configures ovs plugin' do
-      should_not contain_neutron_plugin_ovs('agent/l2_population').with('value' => true)
-    end
-
-    it 'configures linux bridge plugin' do
-      should_not contain_neutron_plugin_linuxbridge('vxlan/enable_vxlan').with('value' => true)
-      should_not contain_neutron_plugin_linuxbridge('vxlan/l2_population').with('value' => true)
     end
 
     context 'configure ml2 with bad driver value' do
       before :each do
        params.merge!(:type_drivers => ['foobar'])
       end
-      it 'should fails to configure ml2 because foobar is not a valid driver' do
-          expect { subject }.to raise_error(Puppet::Error, /type_driver unknown./)
+      it 'fails to configure ml2 because foobar is not a valid driver' do
+        expect { subject }.to raise_error(Puppet::Error, /type_driver unknown./)
       end
     end
 
@@ -103,7 +91,7 @@ describe 'neutron::plugins::ml2' do
       before :each do
         params.merge!(:flat_networks => ['eth1', 'eth2'])
       end
-      it 'should configure flat_networks' do
+      it 'configures flat_networks' do
         should contain_neutron_plugin_ml2('ml2_type_flat/flat_networks').with_value(p[:flat_networks].join(','))
       end
     end
@@ -112,7 +100,7 @@ describe 'neutron::plugins::ml2' do
       before :each do
         params.merge!(:tunnel_id_ranges => ['0:20', '40:60'])
       end
-      it 'should configure gre_networks with valid ranges' do
+      it 'configures gre_networks with valid ranges' do
         should contain_neutron_plugin_ml2('ml2_type_gre/tunnel_id_ranges').with_value(p[:tunnel_id_ranges].join(','))
       end
     end
@@ -121,8 +109,8 @@ describe 'neutron::plugins::ml2' do
       before :each do
        params.merge!(:tunnel_id_ranges => ['0:20', '40:100000000'])
       end
-      it 'should fails to configure gre_networks because of too big range' do
-          expect { subject }.to raise_error(Puppet::Error, /tunnel id ranges are to large./)
+      it 'fails to configure gre_networks because of too big range' do
+        expect { subject }.to raise_error(Puppet::Error, /tunnel id ranges are to large./)
       end
     end
 
@@ -130,113 +118,68 @@ describe 'neutron::plugins::ml2' do
       before :each do
         params.merge!(:network_vlan_ranges => ['1:20', '400:4094'])
       end
-      it 'should configure vlan_networks with 1:20 and 400:4094 VLAN ranges' do
+      it 'configures vlan_networks with 1:20 and 400:4094 VLAN ranges' do
         should contain_neutron_plugin_ml2('ml2_type_vlan/network_vlan_ranges').with_value(p[:network_vlan_ranges].join(','))
       end
     end
 
-     context 'when using vlan driver with invalid vlan id' do
-       before :each do
-        params.merge!(:network_vlan_ranges => ['1:20', '400:4099'])
-       end
-       it 'should fails to configure vlan_networks because of 400:4099 VLAN range' do
-           expect { subject }.to raise_error(Puppet::Error, /vlan id are invalid./)
-       end
-     end
-
-     context 'when using vlan driver with invalid vlan range' do
-       before :each do
-         params.merge!(:network_vlan_ranges => ['2938:1'])
-       end
-       it 'should fails to configure network_vlan_ranges with 2938:1 range' do
-           expect { subject }.to raise_error(Puppet::Error, /vlan ranges are invalid./)
-       end
-     end
-
-     context 'when using vxlan driver with valid values' do
-       before :each do
-         params.merge!(:vni_ranges => ['40:300', '500:1000'], :vxlan_group => '224.1.1.1')
-       end
-       it 'should configure vxlan_networks with 224.1.1.1 vxlan group' do
-         should contain_neutron_plugin_ml2('ml2_type_vxlan/vni_ranges').with_value(p[:vni_ranges].join(','))
-         should contain_neutron_plugin_ml2('ml2_type_vxlan/vxlan_group').with_value(p[:vxlan_group])
-       end
-     end
-
-     context 'when using vxlan driver with invalid vxlan group' do
-       before :each do
-         params.merge!(:vxlan_group => '192.1.1.1')
-       end
-       it 'should fails to configure vxlan_group with 192.1.1.1 vxlan group' do
-           expect { subject }.to raise_error(Puppet::Error, /is not valid for vxlan_group./)
-       end
-     end
-
-     context 'when using vxlan driver with invalid vni_range' do
-       before :each do
-         params.merge!(:vni_ranges => ['2938:1'])
-       end
-       it 'should fails to configure vni_ranges with 2938:1 range' do
-           expect { subject }.to raise_error(Puppet::Error, /vni ranges are invalid./)
-       end
-     end
-
-     context 'when using l2population with ovs' do
-       before :each do
-         params.merge!(:mechanism_drivers => ['openvswitch','l2population'])
-       end
-       it 'should set l2_population flag as true' do
-         should contain_neutron_plugin_ovs('agent/l2_population').with_value('true')
-       end
-     end
-
-     context 'when using l2population with linuxbridge' do
-       before :each do
-         params.merge!(:mechanism_drivers => ['linuxbridge','l2population'])
-       end
-       it 'should set l2_population flag as true' do
-         should contain_neutron_plugin_linuxbridge('vxlan/enable_vxlan').with_value('true')
-         should contain_neutron_plugin_linuxbridge('vxlan/l2_population').with_value('true')
-       end
-     end
-
-     context 'when enabling security group' do
-       before :each do
-         params.merge!(:enable_security_group => true)
-       end
-       it 'should set enable_security_group to true' do
-         should contain_neutron_plugin_ml2('securitygroup/enable_security_group').with('value' => true)
-         should contain_neutron_plugin_ml2('securitygroup/firewall_driver').with('value' => true)
-       end
-     end
-  end
-
-  shared_examples_for 'neutron plugin ml2 on RedHat' do
-    let :p do
-      default_params.merge(params)
-    end
-
-    context 'when using openvswitch' do
+    context 'when using vlan driver with invalid vlan id' do
       before :each do
-        params.merge!(:mechanism_drivers => ['openvswitch'])
+       params.merge!(:network_vlan_ranges => ['1:20', '400:4099'])
       end
-      it 'installs openvswitch package' do
-        should contain_package('neutron-plugin-ovs').with(
-          :ensure => 'present'
-        )
-        should contain_package('neutron-plugin-ovs').with_before(/Neutron_plugin_ovs\[.+\]/)
+      it 'fails to configure vlan_networks because of 400:4099 VLAN range' do
+        expect { subject }.to raise_error(Puppet::Error, /vlan id are invalid./)
       end
     end
 
-    context 'when using linuxbridge' do
+    context 'when using vlan driver with invalid vlan range' do
       before :each do
-        params.merge!(:mechanism_drivers => ['linuxbridge'])
+        params.merge!(:network_vlan_ranges => ['2938:1'])
       end
-      it 'installs linuxbridge package' do
-        should contain_package('neutron-plugin-linuxbridge').with(
-          :ensure => 'present'
-        )
-        should contain_package('neutron-plugin-linuxbridge').with_before(/Neutron_plugin_linuxbridge\[.+\]/)
+      it 'fails to configure network_vlan_ranges with 2938:1 range' do
+        expect { subject }.to raise_error(Puppet::Error, /vlan ranges are invalid./)
+      end
+    end
+
+    context 'when using vxlan driver with valid values' do
+      before :each do
+        params.merge!(:vni_ranges => ['40:300', '500:1000'], :vxlan_group => '224.1.1.1')
+      end
+      it 'configures vxlan_networks with 224.1.1.1 vxlan group' do
+        should contain_neutron_plugin_ml2('ml2_type_vxlan/vni_ranges').with_value(p[:vni_ranges].join(','))
+        should contain_neutron_plugin_ml2('ml2_type_vxlan/vxlan_group').with_value(p[:vxlan_group])
+      end
+    end
+
+    context 'when using vxlan driver with invalid vxlan group' do
+      before :each do
+        params.merge!(:vxlan_group => '192.1.1.1')
+      end
+      it 'fails to configure vxlan_group with 192.1.1.1 vxlan group' do
+        expect { subject }.to raise_error(Puppet::Error, /is not valid for vxlan_group./)
+      end
+    end
+
+    context 'when using vxlan driver with invalid vni_range' do
+      before :each do
+        params.merge!(:vni_ranges => ['2938:1'])
+      end
+      it 'fails to configure vni_ranges with 2938:1 range' do
+        expect { subject }.to raise_error(Puppet::Error, /vni ranges are invalid./)
+      end
+    end
+
+    context 'when overriding package ensure state' do
+      before :each do
+        params.merge!(:package_ensure => 'latest')
+      end
+      it 'overrides package ensure state (if possible)' do
+        if platform_params.has_key?(:ml2_server_package)
+          should contain_package('neutron-plugin-ml2').with(
+            :name   => platform_params[:ml2_server_package],
+            :ensure => params[:package_ensure]
+          )
+        end
       end
     end
   end
@@ -250,7 +193,31 @@ describe 'neutron::plugins::ml2' do
       {}
     end
 
-    it_configures 'neutron plugin ml2'
+    it 'configures /etc/default/neutron-server' do
+      should contain_file_line('/etc/default/neutron-server:NEUTRON_PLUGIN_CONFIG').with(
+        :path    => '/etc/default/neutron-server',
+        :match   => '^NEUTRON_PLUGIN_CONFIG=(.*)$',
+        :line    => 'NEUTRON_PLUGIN_CONFIG=/etc/neutron/plugin.ini',
+        :require => ['File[/etc/neutron/plugin.ini]']
+      )
+    end
+
+    context 'on Ubuntu operating systems' do
+      before do
+        facts.merge!({:operatingsystem => 'Ubuntu'})
+        platform_params.merge!(:ml2_server_package => 'neutron-plugin-ml2')
+      end
+
+      it_configures 'neutron plugin ml2'
+    end
+
+    context 'on non-Ubuntu operating systems' do
+      before do
+        facts.merge!({:operatingsystem => 'Debian'})
+      end
+
+      it_configures 'neutron plugin ml2'
+    end
   end
 
   context 'on RedHat platforms' do
@@ -263,7 +230,6 @@ describe 'neutron::plugins::ml2' do
     end
 
     it_configures 'neutron plugin ml2'
-    it_configures 'neutron plugin ml2 on RedHat'
   end
 
 end
