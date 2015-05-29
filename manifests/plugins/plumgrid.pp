@@ -95,6 +95,7 @@ class neutron::plugins::plumgrid (
     'keystone_authtoken/admin_password': value => $admin_password;
     'keystone_authtoken/auth_uri': value => "http://$controller_priv_host:35357/v2.0";
     'keystone_authtoken/admin_tenant_name': value => 'admin';
+    'PLUMgridLibrary/vapp_flag': value => 'True';
   }
 
   if $::osfamily == 'Redhat' {
