@@ -12,6 +12,7 @@ class neutron::plugins::plumgrid (
   $pg_enable_metadata_agent = false,
   $admin_password           = undef,
   $controller_priv_host     = undef,
+  $auth_protocol            = 'http',
 ) {
 
   include neutron::params
@@ -93,7 +94,7 @@ class neutron::plugins::plumgrid (
   neutron_plumlib_plumgrid {
     'keystone_authtoken/admin_user' : value => 'admin';
     'keystone_authtoken/admin_password': value => $admin_password;
-    'keystone_authtoken/auth_uri': value => "http://$controller_priv_host:35357/v2.0";
+    'keystone_authtoken/auth_uri': value => "${auth_protocol}://$controller_priv_host:35357/v2.0";
     'keystone_authtoken/admin_tenant_name': value => 'admin';
     'PLUMgridLibrary/vapp_flag': value => 'True';
   }
