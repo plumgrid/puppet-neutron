@@ -2,17 +2,20 @@
 # === Parameters
 #
 class neutron::plugins::plumgrid (
-  $package_ensure           = 'installed',
-  $pg_connection            = undef,
-  $pg_director_server       = undef,
-  $pg_director_server_port  = undef,
-  $pg_username              = undef,
-  $pg_password              = undef,
-  $pg_servertimeout         = undef,
-  $pg_enable_metadata_agent = false,
-  $admin_password           = undef,
-  $controller_priv_host     = undef,
-  $auth_protocol            = 'http',
+  $package_ensure               = 'installed',
+  $pg_connection                = undef,
+  $pg_director_server           = undef,
+  $pg_director_server_port      = undef,
+  $pg_username                  = undef,
+  $pg_password                  = undef,
+  $pg_servertimeout             = undef,
+  $pg_enable_metadata_agent     = false,
+  $admin_password               = undef,
+  $controller_priv_host         = undef,
+  $auth_protocol                = 'http',
+  $nova_metadata_ip             = '127.0.0.1',
+  $nova_metadata_port           = '8775',
+  $metadata_proxy_shared_secret = undef,
 ) {
 
   include neutron::params
@@ -97,6 +100,9 @@ class neutron::plugins::plumgrid (
     'keystone_authtoken/auth_uri': value => "${auth_protocol}://$controller_priv_host:35357/v2.0";
     'keystone_authtoken/admin_tenant_name': value => 'admin';
     'PLUMgridLibrary/vapp_flag': value => 'True';
+    'PLUMgridMetadata/nova_metadata_ip': value => "$nova_metadata_ip";
+    'PLUMgridMetadata/nova_metadata_port': value => "$nova_metadata_port";
+    'PLUMgridMetadata/metadata_proxy_shared_secret': value => "$metadata_proxy_shared_secret";
   }
 
   if $::osfamily == 'Redhat' {
