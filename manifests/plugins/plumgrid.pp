@@ -100,6 +100,7 @@ class neutron::plugins::plumgrid (
     'keystone_authtoken/auth_uri': value => "${auth_protocol}://$controller_priv_host:35357/v2.0";
     'keystone_authtoken/admin_tenant_name': value => 'admin';
     'PLUMgridLibrary/vapp_flag': value => 'True';
+    'PLUMgridLibrary/enable_pg_security': value => 'True';
     'PLUMgridMetadata/nova_metadata_ip': value => "$nova_metadata_ip";
     'PLUMgridMetadata/nova_metadata_port': value => "$nova_metadata_port";
     'PLUMgridMetadata/metadata_proxy_shared_secret': value => "$metadata_proxy_shared_secret";
