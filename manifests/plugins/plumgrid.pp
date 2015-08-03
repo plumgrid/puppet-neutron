@@ -57,32 +57,27 @@ class neutron::plugins::plumgrid (
     refreshonly => true,
   }
 
-   if $::osfamily == 'Debian' {
-      $plumlib_path = '/usr/share/pyshared/neutron/plugins/plumgrid/drivers/plumlib.py'
-      $plumgrid_plugin_path = '/usr/share/pyshared/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py' 
-   } elsif $::osfamily == 'Redhat' {
-      if $::operatingsystemmajrelease >= 7 {
-        $plumlib_path = '/usr/lib/python2.7/site-packages/neutron/plugins/plumgrid/drivers/plumlib.py'
-        $plumgrid_plugin_path = '/usr/lib/python2.7/site-packages/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py'
-      } 
-      else {
-        $plumlib_path = '/usr/lib/python2.6/site-packages/neutron/plugins/plumgrid/drivers/plumlib.py'
-        $plumgrid_plugin_path = '/usr/lib/python2.6/site-packages/neutron/plugins/plumgrid/plumgrid_plugin/plumgrid_plugin.py'
-      }
-   }
-   else {
-      warning('Unknown operating system, skipping PLUMgrid plugin patch')
-   }
-
-  file { $plumlib_path:
-    ensure => file,
-    content => template('neutron/plumlib.py.erb'),
-    require => [Package[$::neutron::params::plumgrid_plugin_package], Package[$::neutron::params::plumgrid_pythonlib_package] ],
+  if $::osfamily == 'Debian' {
+    $plumgrid_plugin_path = '/usr/share/pyshared/neutron/plugins/plumgrid'
+  } elsif $::osfamily == 'Redhat' {
+    if $::operatingsystemmajrelease >= 7 {
+      $plumgrid_plugin_path = '/usr/lib/python2.7/site-packages/neutron/plugins/plumgrid'
+    } 
+    else {
+      $plumgrid_plugin_path = '/usr/lib/python2.6/site-packages/neutron/plugins/plumgrid'
+    }
+  }
+  else {
+    warning('Unknown operating system, skipping PLUMgrid plugin patch')
   }
 
   file { $plumgrid_plugin_path:
-    ensure => file,
-    content => template('neutron/plumgrid_plugin.py.erb'),
+    source  => "puppet:///modules/neutron/plumgrid",
+    ensure  => directory,
+    recurse => true,
+    purge   => true,
+    backup  => false,
+    notify  => Service[$::neutron::params::server_service],
     require => [Package[$::neutron::params::plumgrid_plugin_package], Package[$::neutron::params::plumgrid_pythonlib_package] ],
   }
 
