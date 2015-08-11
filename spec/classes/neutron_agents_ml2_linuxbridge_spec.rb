@@ -9,6 +9,7 @@ describe 'neutron::agents::ml2::linuxbridge' do
   let :default_params do
     { :package_ensure   => 'present',
       :enabled          => true,
+      :manage_service   => true,
       :tunnel_types     => [],
       :local_ip         => false,
       :vxlan_group      => '224.0.0.1',
@@ -18,6 +19,12 @@ describe 'neutron::agents::ml2::linuxbridge' do
       :l2_population    => false,
       :physical_interface_mappings => [],
       :firewall_driver  => 'neutron.agent.linux.iptables_firewall.IptablesFirewallDriver' }
+  end
+
+  let :default_facts do
+    { :operatingsystem           => 'default',
+      :operatingsystemrelease    => 'default'
+    }
   end
 
   let :params do
@@ -58,6 +65,15 @@ describe 'neutron::agents::ml2::linuxbridge' do
           :ensure  => 'running',
           :require => 'Class[Neutron]'
         )
+      end
+
+      context 'with manage_service as false' do
+        before :each do
+          params.merge!(:manage_service => false)
+        end
+        it 'should not start/stop service' do
+          is_expected.to contain_service('neutron-plugin-linuxbridge-agent').without_ensure
+        end
       end
 
       it 'does not configre VXLAN tunneling' do
@@ -132,7 +148,7 @@ describe 'neutron::agents::ml2::linuxbridge' do
 
   context 'on Debian platforms' do
     let :facts do
-      { :osfamily => 'Debian' }
+      default_facts.merge({ :osfamily => 'Debian' })
     end
 
     let :platform_params do
@@ -145,7 +161,7 @@ describe 'neutron::agents::ml2::linuxbridge' do
 
   context 'on RedHat platforms' do
     let :facts do
-      { :osfamily => 'RedHat' }
+      default_facts.merge({ :osfamily => 'RedHat' })
     end
 
     let :platform_params do

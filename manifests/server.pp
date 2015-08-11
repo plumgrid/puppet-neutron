@@ -52,6 +52,11 @@
 #   (where '/keystone' is the admin prefix)
 #   Defaults to false for empty. If defined, should be a string with a leading '/' and no trailing '/'.
 #
+# [*auth_region*]
+#   (optional) The authentication region. Note this value is case-sensitive and
+#   must match the endpoint region defined in Keystone.
+#   Defaults to undef
+#
 # [*auth_tenant*]
 #   (optional) The tenant of the auth user
 #   Defaults to services
@@ -196,6 +201,7 @@ class neutron::server (
   $manage_service                   = true,
   $service_name                     = $::neutron::params::server_service,
   $auth_password                    = false,
+  $auth_region                      = undef,
   $auth_type                        = 'keystone',
   $auth_tenant                      = 'services',
   $auth_user                        = 'neutron',
@@ -242,7 +248,7 @@ class neutron::server (
   Class['neutron::policy'] ~> Service['neutron-server']
 
   if $l3_ha {
-    if $min_l3_agents_per_router <= $max_l3_agents_per_router or $max_l3_agents_per_router == '0' {
+    if $min_l3_agents_per_router <= $max_l3_agents_per_router or $max_l3_agents_per_router == 0 {
       neutron_config {
         'DEFAULT/l3_ha':                    value => true;
         'DEFAULT/max_l3_agents_per_router': value => $max_l3_agents_per_router;
@@ -469,6 +475,12 @@ class neutron::server (
       }
       neutron_api_config {
         'filter:authtoken/auth_uri': value => $auth_uri_real;
+      }
+
+      if $auth_region {
+        neutron_config {
+          'keystone_authtoken/auth_region': value => $auth_region;
+        }
       }
 
       if $identity_uri {

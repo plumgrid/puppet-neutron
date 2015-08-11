@@ -8,24 +8,33 @@ describe 'basic neutron' do
       pp= <<-EOS
       Exec { logoutput => 'on_failure' }
 
-      include ::apt
-      apt::source { 'trusty-updates-kilo':
-        location          => 'http://ubuntu-cloud.archive.canonical.com/ubuntu/',
-        release           => 'trusty-updates',
-        required_packages => 'ubuntu-cloud-keyring',
-        repos             => 'kilo/main',
-        trusted_source    => true,
-      } ~>
-      exec { '/usr/bin/apt-get -y dist-upgrade':
-        refreshonly => true,
+      # Common resources
+      case $::osfamily {
+        'Debian': {
+          include ::apt
+          class { '::openstack_extras::repo::debian::ubuntu':
+            release         => 'kilo',
+            package_require => true,
+          }
+          $package_provider = 'apt'
+        }
+        'RedHat': {
+          class { '::openstack_extras::repo::redhat::redhat':
+            release => 'kilo',
+          }
+          package { 'openstack-selinux': ensure => 'latest' }
+          $package_provider = 'yum'
+        }
+        default: {
+          fail("Unsupported osfamily (${::osfamily})")
+        }
       }
-      Apt::Source['trusty-updates-kilo'] -> Package<| |>
 
       class { '::mysql::server': }
 
       class { '::rabbitmq':
         delete_guest_user => true,
-        erlang_cookie     => 'secrete',
+        package_provider  => $package_provider,
       }
 
       rabbitmq_vhost { '/':
@@ -74,7 +83,12 @@ describe 'basic neutron' do
         rabbit_password       => 'an_even_bigger_secret',
         rabbit_host           => '127.0.0.1',
         allow_overlapping_ips => true,
-        core_plugin           => 'neutron.plugins.ml2.plugin.Ml2Plugin',
+        core_plugin           => 'ml2',
+        service_plugins => [
+          'neutron.services.l3_router.l3_router_plugin.L3RouterPlugin',
+          'neutron.services.loadbalancer.plugin.LoadBalancerPlugin',
+          'neutron.services.metering.metering_plugin.MeteringPlugin',
+        ],
       }
       class { '::neutron::db::mysql':
         password => 'a_big_secret',
@@ -86,18 +100,26 @@ describe 'basic neutron' do
         database_connection => 'mysql://neutron:a_big_secret@127.0.0.1/neutron?charset=utf8',
         auth_password       => 'a_big_secret',
         identity_uri        => 'http://127.0.0.1:35357/',
+        sync_db             => true,
       }
       class { '::neutron::client': }
       class { '::neutron::quota': }
       class { '::neutron::agents::dhcp': }
       class { '::neutron::agents::l3': }
-      class { '::neutron::agents::lbaas': }
+      class { '::neutron::agents::lbaas':
+        device_driver => 'neutron_lbaas.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver',
+      }
       class { '::neutron::agents::metering': }
       class { '::neutron::agents::ml2::ovs':
         enable_tunneling => true,
         local_ip         => '127.0.0.1',
+        tunnel_types => ['vxlan'],
       }
-      class { '::neutron::plugins::ml2': }
+      class { '::neutron::plugins::ml2':
+        type_drivers         => ['vxlan'],
+        tenant_network_types => ['vxlan'],
+        mechanism_drivers    => ['openvswitch']
+      }
       EOS
 
 

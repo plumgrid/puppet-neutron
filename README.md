@@ -1,7 +1,7 @@
 neutron
 ===================================
 
-5.0.0 - 2014.2.0 - Juno
+6.0.0 - 2015.1 - Kilo
 
 #### Table of Contents
 
@@ -12,12 +12,11 @@ neutron
 5. [Limitations - OS compatibility, etc.](#limitations)
 6. [Development - Guide for contributing to the module](#development)
 7. [Contributors - Those with commits](#contributors)
-8. [Release Notes - Notes on the most recent updates to the module](#release-notes)
 
 Overview
 --------
 
-The neutron module is a part of [Stackforge](https://github.com/stackforge), an effort by the Openstack infrastructure team to provide continuous integration testing and code review for Openstack and Openstack community projects not part of the core software. The module itself is used to flexibly configure and manage the network service for Openstack.
+The neutron module is a part of [OpenStack](https://github.com/openstack), an effort by the Openstack infrastructure team to provide continuous integration testing and code review for Openstack and Openstack community projects as part of the core software. The module itself is used to flexibly configure and manage the network service for Openstack.
 
 Module Description
 ------------------
@@ -60,10 +59,13 @@ class { 'neutron::server':
     sql_connection  => 'mysql://neutron:neutron_sql_secret@127.0.0.1/neutron?charset=utf8',
 }
 
-# enable the Open VSwitch plugin server
-class { 'neutron::plugins::ovs':
-    tenant_network_type => 'gre',
-    network_vlan_ranges => 'physnet:1000:2000',
+# ml2 plugin with vxlan as ml2 driver and ovs as mechanism driver
+class { '::neutron::plugins::ml2':
+  type_drivers         => ['vxlan'],
+  tenant_network_types => ['vxlan'],
+  vxlan_group          => '239.1.1.1',
+  mechanism_drivers    => ['openvswitch'],
+  vni_ranges           => ['0:300']
 }
 ```
 
@@ -98,9 +100,11 @@ Limitations
 
 This module supports the following neutron plugins:
 
-* Open vSwitch
-* linuxbridge
-* cisco-neutron
+* Open vSwitch with ML2
+* linuxbridge with ML2
+* cisco-neutron with and without ML2
+* NVP
+* PLUMgrid
 
 The following platforms are supported:
 
@@ -130,152 +134,4 @@ The puppet-openstack modules follow the Openstack development model. Developer d
 
 Contributors
 ------------
-The github [contributor graph](https://github.com/stackforge/puppet-neutron/graphs/contributors).
-
-Release Notes
--------------
-
-**5.0.0**
-
-* Stable Juno release
-* Added neutron::policy to control policy.json
-* Added parameter allow_automatic_l3agent_failover to neutron::agents::l3
-* Added parameter metadata_memory_cache_ttl to neutron::agents::metadata
-* Added l3_ext as a provider_network_type property for neutron_network type
-* Changed user_group parameter in neutron::agents::lbaas to have different defaults depending on operating system
-* Changed openswan package to libreswan for RHEL 7 for vpnaas
-* Ensured neutron package was installed before nova_admin_tenant_id_setter is called
-* Added api_extensions_path parameter to neutron class
-* Added database tuning parameters
-* Changed management of file lines in /etc/default/neutron-server only for Ubuntu
-* Add parameters to enable DVR and HA support in neutron::agents::l3 for Juno
-* Fixed meaning of manage_service parameter in neutron::agents::ovs
-* Made keystone user creation optional when creating a service
-* Fixed the enable_dhcp property of neutron_subnet
-* Added the ability to override the keystone service name in neutron::keystone::auth
-* Fixed bug in parsing allocation pools in neutron_subnet type
-* Added relationship to refresh neutron-server when nova_admin_tenant_id_setter changes
-* Migrated the neutron::db::mysql class to use openstacklib::db::mysql and deprecated the mysql_module parameter
-* Fixed the relationship between the HA proxy package and the neutron-lbaas-agent package
-* Added kombu_reconnect_delay parameter to neutron class
-* Fixed plugin.ini error when cisco class is used
-* Fixed relationship between vs_pridge types and the neutron-plugin-ovs service
-* Added neutron::agents::n1kv_vem to deploy N1KV VEM
-* Added SSL support for nova_admin_tenant_id_setter
-* Fixed relationship between neutron-server package and neutron_plugin_ml2 types
-* Stopped puppet from trying to manage the ovs cleanup service
-* Deprecated the network_device_mtu parameter in neutron::agents::l3 and moved it to the neutron class
-* Added vpnaas_agent_package parameter to neutron::services::fwaas to install the vpnaas agent package
-
-**4.3.0**
-
-* Added parameter to specify number of RPC workers to spawn
-* Added ability to manage Neutron ML2 plugin
-* Fixed ssl parameter requirements when using kombu and rabbit
-* Added ability to hide secret neutron configs from logs and fixed password leaking
-* Added neutron plugin config file specification in neutron-server config
-* Fixed installation of ML2 plugin on Ubuntu
-* Added support for Cisco ML2 Mech Driver
-* Fixed quotas parameters in neutron config
-* Added parameter to configure dhcp_agent_notification in neutron config
-* Added class for linuxbridge support
-* Fixed neutron-server restart
-* Undeprecated enable_security_group parameter
-
-**4.2.0**
-
-* Added ml2/ovs support.
-* Added multi-region support.
-* Set default metadata backlog to 4096.
-* Fixed neutron-server refresh bug.
-
-**4.1.0**
-
-* Added parameter to set veth MTU.
-* Added RabbitMQ SSL support.
-* Added support for '' as a valid value for gateway_ip.
-* Fixed potential OVS resource duplication.
-* Pinned major gems.
-
-**4.0.0**
-
-* Stable Icehouse release.
-* Added Neutron-Nova interactions support.
-* Added external network bridge and interface driver for vpn agent.
-* Added support for puppetlabs-mysql 2.2 and greater.
-* Added neutron::config to handle additional custom options.
-* Added https support to metadata agent.
-* Added manage_service paraneter.
-* Added quota parameters.
-* Added support to configure ovs without installing package.
-* Added support for optional haproxy package management.
-* Added support to configure plugins by name rather than class name.
-* Added multi-worker support.
-* Added isolated network support.
-* Updated security group option for ml2 plugin.
-* Updated packaging changes for Red Hat and Ubuntu systems.
-* Updated parameter defaults to track upstream (Icehouse).
-* Fixed bug for subnets with empty values.
-* Fixed typos and misconfiguration in neutron.conf.
-* Fixed max_retries parameter warning.
-* Fixed database creation bugs.
-
-**3.3.0**
-
-* Added neutron_port resource.
-* Added external network bridge for vpn agent.
-* Changed dhcp_lease_duration to Havana default of 86400
-* Fixed VPNaaS installation for Red Hat systems.
-* Fixed conflicting symlink.
-* Fixed network_vlan_ranges parameter for OVS plugin
-
-**3.2.0**
-
-* Added write support for dns, allocation pools, and host routes to Neutron router provider.
-* Fixed multi-line attribute detection in base Neutron provider.
-* Fixed bugs with neutron router gateway id parsing.
-
-**3.1.0**
-
-* Added VXLAN support.
-* Configures security group when using ML2 plugin.
-* Ensures installation of ML2 plugin.
-* Fixed server deprecated warnings.
-* Tuned report and downtime intervals for l2 agent.
-* Added support for neutron nvp plugin.
-* Ensures linuxbridge dependency is installed on RHEL.
-* Improved L3 scheduler support.
-* Fixed improper test for tunnel_types param.
-* Allows log_dir to be set to false in order to disable file logging.
-* Improves consistency with other puppet modules for OpenStack by prefixing database related parameters with database.
-* Removed strict checks for vlan_ranges.
-* Fixed neutron-metering-agent package for Ubuntu.
-* Fixed VPNaaS service name for Ubuntu.
-* Fixed FWaaS race condition.
-* Fixed ML2 package dependency for Ubuntu.
-* Removed erronious check for service_plugins.
-* Added support for https auth endpoints.
-* Makes haproxy package management optional.
-
-**3.0.0**
-
-* Major release for OpenStack Havana.
-* Renamed project from quantum to neutron.
-* Changed the default quota_driver.
-* Removed provider setting requirement.
-* Fixed file permissions.
-* Fixed bug to ensure that keystone endpoint is set before service starts.
-* Added database configuration support for Havana.
-* Ensured dnsmasq package resource for compatibility with modules that define the same resource
-* Added multi-worker support.
-* Added metering agent support.
-* Added vpnaas agent support.
-* Added ml2 plugin support.
-* Fixed lbass driver name.
-
-**2.2.0**
-
-* Improved documentation.
-* Added syslog support.
-* Added quantum-plugin-cisco package resource.
-* Various lint and bug fixes.
+The github [contributor graph](https://github.com/openstack/puppet-neutron/graphs/contributors).

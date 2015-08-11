@@ -31,6 +31,9 @@ class neutron::params {
     $cisco_config_file     = '/etc/neutron/plugins/cisco/cisco_plugins.ini'
     $cisco_ml2_config_file = '/etc/neutron/plugins/ml2/ml2_conf_cisco.ini'
 
+    $opencontrail_plugin_package = 'neutron-plugin-contrail'
+    $opencontrail_config_file    = '/etc/neutron/plugins/opencontrail/ContrailPlugin.ini'
+
     $midonet_server_package = 'python-neutron-plugin-midonet'
     $midonet_config_file    = '/etc/neutron/plugins/midonet/midonet.ini'
 
@@ -107,6 +110,9 @@ class neutron::params {
     $cisco_config_file     = '/etc/neutron/plugins/cisco/cisco_plugins.ini'
     $cisco_ml2_config_file = '/etc/neutron/plugins/ml2/ml2_conf_cisco.ini'
 
+    $opencontrail_plugin_package = 'neutron-plugin-contrail'
+    $opencontrail_config_file    = '/etc/neutron/plugins/opencontrail/ContrailPlugin.ini'
+
     $midonet_server_package = 'python-neutron-plugin-midonet'
     $midonet_config_file    = '/etc/neutron/plugins/midonet/midonet.ini'
 
@@ -142,7 +148,7 @@ class neutron::params {
     $l3_agent_package   = 'neutron-l3-agent'
     $l3_agent_service   = 'neutron-l3-agent'
 
-    $fwaas_package      = 'neutron-fwaas'
+    $fwaas_package      = 'python-neutron-fwaas'
 
     $cliff_package      = 'python-cliff'
     $kernel_headers     = "linux-headers-${::kernelrelease}"

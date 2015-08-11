@@ -9,9 +9,16 @@ describe 'neutron::agents::ml2::sriov' do
   let :default_params do
     { :package_ensure             => 'present',
       :enabled                    => true,
+      :manage_service             => true,
       :physical_device_mappings   => [],
       :exclude_devices            => [],
       :polling_interval           => 2,
+    }
+  end
+
+  let :default_facts do
+    { :operatingsystem           => 'default',
+      :operatingsystemrelease    => 'default'
     }
   end
 
@@ -41,13 +48,22 @@ describe 'neutron::agents::ml2::sriov' do
       is_expected.to contain_package('neutron-sriov-nic-agent').with_before(/Neutron_plugin_ml2\[.+\]/)
     end
 
-    it 'configures neutron ovs agent service' do
+    it 'configures neutron sriov agent service' do
       is_expected.to contain_service('neutron-sriov-nic-agent-service').with(
         :name    => platform_params[:sriov_nic_agent_service],
         :enable  => true,
         :ensure  => 'running',
         :require => 'Class[Neutron]'
       )
+    end
+
+    context 'with manage_service as false' do
+      before :each do
+        params.merge!(:manage_service => false)
+      end
+      it 'should not start/stop service' do
+        is_expected.to contain_service('neutron-sriov-nic-agent-service').without_ensure
+      end
     end
 
     context 'when supplying device mapping' do
@@ -65,7 +81,7 @@ describe 'neutron::agents::ml2::sriov' do
 
   context 'on Debian platforms' do
     let :facts do
-      { :osfamily => 'Debian' }
+      default_facts.merge({ :osfamily => 'Debian' })
     end
 
     let :platform_params do
@@ -78,7 +94,7 @@ describe 'neutron::agents::ml2::sriov' do
 
   context 'on RedHat platforms' do
     let :facts do
-      { :osfamily => 'RedHat' }
+      default_facts.merge({ :osfamily => 'RedHat' })
     end
 
     let :platform_params do
