@@ -16,6 +16,7 @@ class neutron::params {
 
     $plumgrid_plugin_package = 'openstack-neutron-plumgrid'
     $plumgrid_pythonlib_package = 'plumgrid-pythonlib'
+    $python_retrying_package = 'python-retrying'
     $plumgrid_config_file = '/etc/neutron/plugins/plumgrid/plumgrid.ini'
     $neutron_sudoers_file = '/etc/sudoers.d/neutron'
 
@@ -71,6 +72,7 @@ class neutron::params {
 
     $plumgrid_plugin_package = 'neutron-plugin-plumgrid'
     $plumgrid_pythonlib_package = 'plumgrid-pythonlib'
+    $python_retrying_package = 'python-retrying'
     $plumgrid_config_file = '/etc/neutron/plugins/plumgrid/plumgrid.ini'
     $neutron_sudoers_file = '/etc/sudoers.d/neutron_sudoers'
 

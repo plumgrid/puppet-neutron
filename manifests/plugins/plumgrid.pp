@@ -51,6 +51,11 @@ class neutron::plugins::plumgrid (
     configfiles => replace,
   }
 
+  package { '$::neutron::params::python_retrying_package':
+    ensure  => $package_ensure,
+    name    => $::neutron::params::python_retrying_package,
+  }
+
   exec { 'sync-default-sec-grp':
     command     => 'neutron security-group-delete default',
     path        => '/usr/bin',
@@ -78,7 +83,7 @@ class neutron::plugins::plumgrid (
     purge   => true,
     backup  => false,
     notify  => Service[$::neutron::params::server_service],
-    require => [Package[$::neutron::params::plumgrid_plugin_package], Package[$::neutron::params::plumgrid_pythonlib_package] ],
+    require => [Package[$::neutron::params::plumgrid_plugin_package], Package[$::neutron::params::plumgrid_pythonlib_package], Package[$::neutron::params::python_retrying_package] ],
   }
 
   neutron_plugin_plumgrid {
