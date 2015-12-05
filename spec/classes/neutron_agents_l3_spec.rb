@@ -11,7 +11,7 @@ describe 'neutron::agents::l3' do
       :enabled                          => true,
       :debug                            => false,
       :external_network_bridge          => 'br-ex',
-      :use_namespaces                   => true,
+      :use_namespaces                   => nil,
       :interface_driver                 => 'neutron.agent.linux.interface.OVSInterfaceDriver',
       :router_id                        => nil,
       :gateway_external_network_id      => nil,
@@ -22,7 +22,7 @@ describe 'neutron::agents::l3' do
       :periodic_fuzzy_delay             => '5',
       :enable_metadata_proxy            => true,
       :network_device_mtu               => nil,
-      :router_delete_namespaces         => false,
+      :router_delete_namespaces         => true,
       :ha_enabled                       => false,
       :ha_vrrp_auth_type                => 'PASS',
       :ha_vrrp_auth_password            => nil,
@@ -50,7 +50,6 @@ describe 'neutron::agents::l3' do
     it 'configures l3_agent.ini' do
       is_expected.to contain_neutron_l3_agent_config('DEFAULT/debug').with_value(p[:debug])
       is_expected.to contain_neutron_l3_agent_config('DEFAULT/external_network_bridge').with_value(p[:external_network_bridge])
-      is_expected.to contain_neutron_l3_agent_config('DEFAULT/use_namespaces').with_value(p[:use_namespaces])
       is_expected.to contain_neutron_l3_agent_config('DEFAULT/interface_driver').with_value(p[:interface_driver])
       is_expected.to contain_neutron_l3_agent_config('DEFAULT/router_id').with_value(p[:router_id])
       is_expected.to contain_neutron_l3_agent_config('DEFAULT/gateway_external_network_id').with_value(p[:gateway_external_network_id])
@@ -70,7 +69,7 @@ describe 'neutron::agents::l3' do
           :name    => platform_params[:l3_agent_package],
           :ensure  => p[:package_ensure],
           :require => 'Package[neutron]',
-          :tag     => 'openstack'
+          :tag     => ['openstack', 'neutron-package'],
         )
         is_expected.to contain_package('neutron-l3').with_before(/Neutron_l3_agent_config\[.+\]/)
       else
@@ -83,8 +82,10 @@ describe 'neutron::agents::l3' do
         :name    => platform_params[:l3_agent_service],
         :enable  => true,
         :ensure  => 'running',
-        :require => 'Class[Neutron]'
+        :require => 'Class[Neutron]',
+        :tag     => 'neutron-service',
       )
+      is_expected.to contain_service('neutron-l3').that_subscribes_to('Package[neutron]')
     end
 
     context 'with manage_service as false' do
@@ -116,6 +117,15 @@ describe 'neutron::agents::l3' do
         is_expected.to contain_neutron_l3_agent_config('DEFAULT/ha_vrrp_advert_int').with_value(p[:ha_vrrp_advert_int])
       end
     end
+
+    context 'with use_namespaces as false' do
+      before :each do
+        params.merge!(:use_namespaces => false)
+      end
+      it 'should set use_namespaces option' do
+        is_expected.to contain_neutron_l3_agent_config('DEFAULT/use_namespaces').with_value(p[:use_namespaces])
+      end
+    end
   end
 
   shared_examples_for 'neutron l3 agent with network_device_mtu specified' do
@@ -141,11 +151,17 @@ describe 'neutron::agents::l3' do
 
     it_configures 'neutron l3 agent'
     it_configures 'neutron l3 agent with network_device_mtu specified'
+    it 'configures neutron-l3 package subscription' do
+      is_expected.to contain_service('neutron-l3').that_subscribes_to( [ 'Package[neutron]', 'Package[neutron-l3]' ] )
+    end
   end
 
   context 'on RedHat platforms' do
     let :facts do
-      default_facts.merge({ :osfamily => 'RedHat' })
+      default_facts.merge({
+        :osfamily               => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
 
     let :platform_params do

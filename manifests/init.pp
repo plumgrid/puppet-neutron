@@ -32,7 +32,7 @@
 # [*core_plugin*]
 #   (optional) Neutron plugin provider
 #   Defaults to openvswitch
-#   Could be bigswitch, brocade, cisco, embrane, hyperv, linuxbridge, midonet, ml2, mlnx, nec, nicira, plumgrid, ryu, opencontrail (full path)
+#   Could be bigswitch, brocade, cisco, embrane, hyperv, linuxbridge, midonet, ml2, mlnx, nec, nicira, plumgrid, ryu, nuage, opencontrail (full path)
 #
 #   Example for opencontrail:
 #
@@ -75,6 +75,10 @@
 #   (optional) Allow sending resource operation notification to DHCP agent.
 #   Defaults to true
 #
+# [*advertise_mtu*]
+#   (optional) VMs will receive DHCP and RA MTU option when the network's preferred MTU is known
+#   Defaults to false
+#
 # [*allow_bulk*]
 #   (optional) Enable bulk crud operations
 #   Defaults to true
@@ -96,6 +100,12 @@
 #   module in use needs to load.
 #   Defaults to undef
 #
+# [*root_helper*]
+#  (optional) Use "sudo neutron-rootwrap /etc/neutron/rootwrap.conf" to use the real
+#  root filter facility. Change to "sudo" to skip the filtering and just run the command
+#  directly
+#  Defaults to 'sudo neutron-rootwrap /etc/neutron/rootwrap.conf'.
+#
 # [*report_interval*]
 #   (optional) Seconds between nodes reporting state to server; should be less than
 #   agent_down_time, best if it is half or less than agent_down_time.
@@ -103,7 +113,7 @@
 #   report_interval is a config for neutron agents, set by class neutron
 #   Defaults to: 30
 #
-# [memcache_servers]
+# [*memcache_servers*]
 #   List of memcache servers in format of server:port.
 #   Optional. Defaults to false. Example: ['localhost:11211']
 #
@@ -113,7 +123,11 @@
 
 # [*rpc_backend*]
 #   (optional) what rpc/queuing service to use
-#   Defaults to impl_kombu (rabbitmq)
+#   Defaults to rabbit (rabbitmq)
+#
+# [*rpc_response_timeout*]
+#   (optional) Seconds to wait for a response from a call
+#   Defaults to 60
 #
 # [*rabbit_password*]
 # [*rabbit_host*]
@@ -121,11 +135,30 @@
 # [*rabbit_user*]
 #   (optional) Various rabbitmq settings
 #
+# [*rabbit_virtual_host*]
+#   (optional) virtualhost to use.
+#   Defaults to '/'
+#
 # [*rabbit_hosts*]
 #   (optional) array of rabbitmq servers for HA.
 #   A single IP address, such as a VIP, can be used for load-balancing
 #   multiple RabbitMQ Brokers.
 #   Defaults to false
+#
+# [*rabbit_heartbeat_timeout_threshold*]
+#   (optional) Number of seconds after which the RabbitMQ broker is considered
+#   down if the heartbeat keepalive fails.  Any value >0 enables heartbeats.
+#   Heartbeating helps to ensure the TCP connection to RabbitMQ isn't silently
+#   closed, resulting in missed or lost messages from the queue.
+#   (Requires kombu >= 3.0.7 and amqp >= 1.4.0)
+#   Defaults to 0
+#
+# [*rabbit_heartbeat_rate*]
+#   (optional) How often during the rabbit_heartbeat_timeout_threshold period to
+#   check the heartbeat on RabbitMQ connection.  (i.e. rabbit_heartbeat_rate=2
+#   when rabbit_heartbeat_timeout_threshold=60, the heartbeat will be checked
+#   every 30 seconds.
+#   Defaults to 2
 #
 # [*rabbit_use_ssl*]
 #   (optional) Connect over SSL for RabbitMQ
@@ -191,6 +224,10 @@
 #   (optional) Use syslog for logging
 #   Defaults to false
 #
+# [*use_stderr*]
+#   (optional) Use stderr for logging
+#   Defaults to true
+#
 # [*log_facility*]
 #   (optional) Syslog facility to receive log lines
 #   Defaults to LOG_USER
@@ -215,72 +252,74 @@
 #   Defaults to: /var/lib/neutron/lock
 #
 class neutron (
-  $enabled                     = true,
-  $package_ensure              = 'present',
-  $verbose                     = false,
-  $debug                       = false,
-  $bind_host                   = '0.0.0.0',
-  $bind_port                   = '9696',
-  $core_plugin                 = 'openvswitch',
-  $service_plugins             = undef,
-  $auth_strategy               = 'keystone',
-  $base_mac                    = 'fa:16:3e:00:00:00',
-  $mac_generation_retries      = 16,
-  $dhcp_lease_duration         = 86400,
-  $dhcp_agents_per_network     = 1,
-  $network_device_mtu          = undef,
-  $dhcp_agent_notification     = true,
-  $allow_bulk                  = true,
-  $allow_pagination            = false,
-  $allow_sorting               = false,
-  $allow_overlapping_ips       = false,
-  $api_extensions_path         = undef,
-  $root_helper                 = 'sudo neutron-rootwrap /etc/neutron/rootwrap.conf',
-  $report_interval             = '30',
-  $memcache_servers            = false,
-  $control_exchange            = 'neutron',
-  $rpc_backend                 = 'neutron.openstack.common.rpc.impl_kombu',
-  $rabbit_password             = false,
-  $rabbit_host                 = 'localhost',
-  $rabbit_hosts                = false,
-  $rabbit_port                 = '5672',
-  $rabbit_user                 = 'guest',
-  $rabbit_virtual_host         = '/',
-  $rabbit_use_ssl              = false,
-  $kombu_ssl_ca_certs          = undef,
-  $kombu_ssl_certfile          = undef,
-  $kombu_ssl_keyfile           = undef,
-  $kombu_ssl_version           = 'TLSv1',
-  $kombu_reconnect_delay       = '1.0',
-  $qpid_hostname               = 'localhost',
-  $qpid_port                   = '5672',
-  $qpid_username               = 'guest',
-  $qpid_password               = 'guest',
-  $qpid_heartbeat              = 60,
-  $qpid_protocol               = 'tcp',
-  $qpid_tcp_nodelay            = true,
-  $qpid_reconnect              = true,
-  $qpid_reconnect_timeout      = 0,
-  $qpid_reconnect_limit        = 0,
-  $qpid_reconnect_interval_min = 0,
-  $qpid_reconnect_interval_max = 0,
-  $qpid_reconnect_interval     = 0,
-  $use_ssl                     = false,
-  $cert_file                   = false,
-  $key_file                    = false,
-  $ca_file                     = false,
-  $use_syslog                  = false,
-  $log_facility                = 'LOG_USER',
-  $log_file                    = false,
-  $log_dir                     = '/var/log/neutron',
-  $state_path                  = '/var/lib/neutron',
-  $lock_path                   = '/var/lib/neutron/lock',
+  $enabled                            = true,
+  $package_ensure                     = 'present',
+  $verbose                            = false,
+  $debug                              = false,
+  $bind_host                          = '0.0.0.0',
+  $bind_port                          = '9696',
+  $core_plugin                        = 'openvswitch',
+  $service_plugins                    = undef,
+  $auth_strategy                      = 'keystone',
+  $base_mac                           = 'fa:16:3e:00:00:00',
+  $mac_generation_retries             = 16,
+  $dhcp_lease_duration                = 86400,
+  $dhcp_agents_per_network            = 1,
+  $network_device_mtu                 = undef,
+  $dhcp_agent_notification            = true,
+  $advertise_mtu                      = false,
+  $allow_bulk                         = true,
+  $allow_pagination                   = false,
+  $allow_sorting                      = false,
+  $allow_overlapping_ips              = false,
+  $api_extensions_path                = undef,
+  $root_helper                        = 'sudo neutron-rootwrap /etc/neutron/rootwrap.conf',
+  $report_interval                    = '30',
+  $memcache_servers                   = false,
+  $control_exchange                   = 'neutron',
+  $rpc_backend                        = 'rabbit',
+  $rpc_response_timeout               = 60,
+  $rabbit_password                    = false,
+  $rabbit_host                        = 'localhost',
+  $rabbit_hosts                       = false,
+  $rabbit_port                        = '5672',
+  $rabbit_user                        = 'guest',
+  $rabbit_virtual_host                = '/',
+  $rabbit_heartbeat_timeout_threshold = 0,
+  $rabbit_heartbeat_rate              = 2,
+  $rabbit_use_ssl                     = false,
+  $kombu_ssl_ca_certs                 = undef,
+  $kombu_ssl_certfile                 = undef,
+  $kombu_ssl_keyfile                  = undef,
+  $kombu_ssl_version                  = 'TLSv1',
+  $kombu_reconnect_delay              = '1.0',
+  $qpid_hostname                      = 'localhost',
+  $qpid_port                          = '5672',
+  $qpid_username                      = 'guest',
+  $qpid_password                      = 'guest',
+  $qpid_heartbeat                     = 60,
+  $qpid_protocol                      = 'tcp',
+  $qpid_tcp_nodelay                   = true,
+  $qpid_reconnect                     = true,
+  $qpid_reconnect_timeout             = 0,
+  $qpid_reconnect_limit               = 0,
+  $qpid_reconnect_interval_min        = 0,
+  $qpid_reconnect_interval_max        = 0,
+  $qpid_reconnect_interval            = 0,
+  $use_ssl                            = false,
+  $cert_file                          = false,
+  $key_file                           = false,
+  $ca_file                            = false,
+  $use_syslog                         = false,
+  $use_stderr                         = true,
+  $log_facility                       = 'LOG_USER',
+  $log_file                           = false,
+  $log_dir                            = '/var/log/neutron',
+  $state_path                         = '/var/lib/neutron',
+  $lock_path                          = '/var/lib/neutron/lock',
 ) {
 
   include ::neutron::params
-
-  Package['neutron'] -> Neutron_config<||>
-  Package['neutron'] -> Nova_Admin_Tenant_Id_Setter<||>
 
   if $use_ssl {
     if !$cert_file {
@@ -312,27 +351,19 @@ class neutron (
     validate_array($memcache_servers)
   }
 
-  File {
-    require => Package['neutron'],
-    owner   => 'root',
-    group   => 'neutron',
-  }
-
-  file { '/etc/neutron':
-    ensure => directory,
-  }
-
-  file { '/etc/neutron/neutron.conf': }
-
   package { 'neutron':
     ensure => $package_ensure,
     name   => $::neutron::params::package_name,
-    tag    => 'openstack',
+    tag    => ['openstack', 'neutron-package'],
   }
+
+  # Make sure all services get restarted if neutron-common package is upgraded
+  Package['neutron'] ~> Service<| tag == 'neutron-service' |>
 
   neutron_config {
     'DEFAULT/verbose':                 value => $verbose;
     'DEFAULT/debug':                   value => $debug;
+    'DEFAULT/use_stderr':              value => $use_stderr;
     'DEFAULT/bind_host':               value => $bind_host;
     'DEFAULT/bind_port':               value => $bind_port;
     'DEFAULT/auth_strategy':           value => $auth_strategy;
@@ -342,6 +373,7 @@ class neutron (
     'DEFAULT/dhcp_lease_duration':     value => $dhcp_lease_duration;
     'DEFAULT/dhcp_agents_per_network': value => $dhcp_agents_per_network;
     'DEFAULT/dhcp_agent_notification': value => $dhcp_agent_notification;
+    'DEFAULT/advertise_mtu':           value => $advertise_mtu;
     'DEFAULT/allow_bulk':              value => $allow_bulk;
     'DEFAULT/allow_pagination':        value => $allow_pagination;
     'DEFAULT/allow_sorting':           value => $allow_sorting;
@@ -351,6 +383,7 @@ class neutron (
     'DEFAULT/api_extensions_path':     value => $api_extensions_path;
     'DEFAULT/state_path':              value => $state_path;
     'DEFAULT/lock_path':               value => $lock_path;
+    'DEFAULT/rpc_response_timeout':    value => $rpc_response_timeout;
     'agent/root_helper':               value => $root_helper;
     'agent/report_interval':           value => $report_interval;
   }
@@ -404,7 +437,7 @@ class neutron (
   }
 
 
-  if $rpc_backend == 'neutron.openstack.common.rpc.impl_kombu' {
+  if $rpc_backend == 'rabbit' or $rpc_backend == 'neutron.openstack.common.rpc.impl_kombu' {
     if ! $rabbit_password {
       fail('When rpc_backend is rabbitmq, you must set rabbit password')
     }
@@ -419,11 +452,13 @@ class neutron (
     }
 
     neutron_config {
-      'oslo_messaging_rabbit/rabbit_userid':         value => $rabbit_user;
-      'oslo_messaging_rabbit/rabbit_password':       value => $rabbit_password, secret => true;
-      'oslo_messaging_rabbit/rabbit_virtual_host':   value => $rabbit_virtual_host;
-      'oslo_messaging_rabbit/rabbit_use_ssl':        value => $rabbit_use_ssl;
-      'oslo_messaging_rabbit/kombu_reconnect_delay': value => $kombu_reconnect_delay;
+      'oslo_messaging_rabbit/rabbit_userid':                value => $rabbit_user;
+      'oslo_messaging_rabbit/rabbit_password':              value => $rabbit_password, secret => true;
+      'oslo_messaging_rabbit/rabbit_virtual_host':          value => $rabbit_virtual_host;
+      'oslo_messaging_rabbit/heartbeat_timeout_threshold':  value => $rabbit_heartbeat_timeout_threshold;
+      'oslo_messaging_rabbit/heartbeat_rate':               value => $rabbit_heartbeat_rate;
+      'oslo_messaging_rabbit/rabbit_use_ssl':               value => $rabbit_use_ssl;
+      'oslo_messaging_rabbit/kombu_reconnect_delay':        value => $kombu_reconnect_delay;
     }
 
     if $rabbit_use_ssl {
@@ -463,21 +498,21 @@ class neutron (
 
   }
 
-  if $rpc_backend == 'neutron.openstack.common.rpc.impl_qpid' {
+  if $rpc_backend == 'qpid' or $rpc_backend == 'neutron.openstack.common.rpc.impl_qpid' {
     neutron_config {
-      'DEFAULT/qpid_hostname':               value => $qpid_hostname;
-      'DEFAULT/qpid_port':                   value => $qpid_port;
-      'DEFAULT/qpid_username':               value => $qpid_username;
-      'DEFAULT/qpid_password':               value => $qpid_password, secret => true;
-      'DEFAULT/qpid_heartbeat':              value => $qpid_heartbeat;
-      'DEFAULT/qpid_protocol':               value => $qpid_protocol;
-      'DEFAULT/qpid_tcp_nodelay':            value => $qpid_tcp_nodelay;
-      'DEFAULT/qpid_reconnect':              value => $qpid_reconnect;
-      'DEFAULT/qpid_reconnect_timeout':      value => $qpid_reconnect_timeout;
-      'DEFAULT/qpid_reconnect_limit':        value => $qpid_reconnect_limit;
-      'DEFAULT/qpid_reconnect_interval_min': value => $qpid_reconnect_interval_min;
-      'DEFAULT/qpid_reconnect_interval_max': value => $qpid_reconnect_interval_max;
-      'DEFAULT/qpid_reconnect_interval':     value => $qpid_reconnect_interval;
+      'oslo_messaging_qpid/qpid_hostname':               value => $qpid_hostname;
+      'oslo_messaging_qpid/qpid_port':                   value => $qpid_port;
+      'oslo_messaging_qpid/qpid_username':               value => $qpid_username;
+      'oslo_messaging_qpid/qpid_password':               value => $qpid_password, secret => true;
+      'oslo_messaging_qpid/qpid_heartbeat':              value => $qpid_heartbeat;
+      'oslo_messaging_qpid/qpid_protocol':               value => $qpid_protocol;
+      'oslo_messaging_qpid/qpid_tcp_nodelay':            value => $qpid_tcp_nodelay;
+      'oslo_messaging_qpid/qpid_reconnect':              value => $qpid_reconnect;
+      'oslo_messaging_qpid/qpid_reconnect_timeout':      value => $qpid_reconnect_timeout;
+      'oslo_messaging_qpid/qpid_reconnect_limit':        value => $qpid_reconnect_limit;
+      'oslo_messaging_qpid/qpid_reconnect_interval_min': value => $qpid_reconnect_interval_min;
+      'oslo_messaging_qpid/qpid_reconnect_interval_max': value => $qpid_reconnect_interval_max;
+      'oslo_messaging_qpid/qpid_reconnect_interval':     value => $qpid_reconnect_interval;
     }
   }
 

@@ -39,9 +39,11 @@ describe 'neutron::agents::metadata' do
       is_expected.to contain_service('neutron-metadata').with(
         :name    => platform_params[:metadata_agent_service],
         :enable  => params[:enabled],
-        :ensure => 'running',
-        :require => 'Class[Neutron]'
+        :ensure  => 'running',
+        :require => 'Class[Neutron]',
+        :tag     => 'neutron-service',
       )
+      is_expected.to contain_service('neutron-metadata').that_subscribes_to('Package[neutron]')
     end
 
     context 'with manage_service as false' do
@@ -104,20 +106,23 @@ describe 'neutron::agents::metadata' do
       is_expected.to contain_package('neutron-metadata').with(
         :ensure => params[:package_ensure],
         :name   => platform_params[:metadata_agent_package],
-        :tag    => 'openstack'
+        :tag    => ['openstack', 'neutron-package'],
       )
     end
 
     it_configures 'neutron metadata agent'
     it_configures 'neutron metadata agent with auth_insecure and auth_ca_cert set'
-
+    it 'configures subscription to neutron-metadata package' do
+      is_expected.to contain_service('neutron-metadata').that_subscribes_to('Package[neutron-metadata]')
+    end
   end
 
   context 'on Red Hat platforms' do
     let :facts do
-      default_facts.merge(
-        { :osfamily => 'RedHat' }
-      )
+      default_facts.merge({
+        :osfamily => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
 
     let :platform_params do

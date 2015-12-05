@@ -26,10 +26,6 @@
 #   (optional) The name of the external bridge
 #   Defaults to br-ex
 #
-# [*use_namespaces*]
-#   (optional) Enable overlapping IPs / network namespaces
-#   Defaults to false
-#
 # [*interface_driver*]
 #   (optional) Driver to interface with neutron
 #   Defaults to OVSInterfaceDriver
@@ -74,7 +70,7 @@
 #
 # [*router_delete_namespaces*]
 #   (optional) namespaces can be deleted cleanly on the host running the L3 agent
-#   Defaults to False
+#   Defaults to true
 #
 # [*ha_enabled*]
 #   (optional) Enabled or not HA for L3 agent.
@@ -102,13 +98,20 @@
 # [*allow_automatic_l3agent_failover*]
 #   DEPRECATED: Has no effect in this class. Use the same parameter in neutron::server instead.
 #
+# === Deprecated Parameters
+#
+# [*use_namespaces*]
+#   (optional) Deprecated. 'True' value will be enforced in future releases.
+#   Allow overlapping IP (Must have kernel build with
+#   CONFIG_NET_NS=y and iproute2 package that supports namespaces).
+#   Defaults to undef.
+#
 class neutron::agents::l3 (
   $package_ensure                   = 'present',
   $enabled                          = true,
   $manage_service                   = true,
   $debug                            = false,
   $external_network_bridge          = 'br-ex',
-  $use_namespaces                   = true,
   $interface_driver                 = 'neutron.agent.linux.interface.OVSInterfaceDriver',
   $router_id                        = undef,
   $gateway_external_network_id      = undef,
@@ -119,7 +122,7 @@ class neutron::agents::l3 (
   $periodic_fuzzy_delay             = '5',
   $enable_metadata_proxy            = true,
   $network_device_mtu               = undef,
-  $router_delete_namespaces         = false,
+  $router_delete_namespaces         = true,
   $ha_enabled                       = false,
   $ha_vrrp_auth_type                = 'PASS',
   $ha_vrrp_auth_password            = undef,
@@ -127,6 +130,7 @@ class neutron::agents::l3 (
   $agent_mode                       = 'legacy',
   # DEPRECATED PARAMETERS
   $allow_automatic_l3agent_failover = false,
+  $use_namespaces                   = undef,
 ) {
 
   include ::neutron::params
@@ -149,7 +153,6 @@ class neutron::agents::l3 (
   neutron_l3_agent_config {
     'DEFAULT/debug':                            value => $debug;
     'DEFAULT/external_network_bridge':          value => $external_network_bridge;
-    'DEFAULT/use_namespaces':                   value => $use_namespaces;
     'DEFAULT/interface_driver':                 value => $interface_driver;
     'DEFAULT/router_id':                        value => $router_id;
     'DEFAULT/gateway_external_network_id':      value => $gateway_external_network_id;
@@ -161,6 +164,13 @@ class neutron::agents::l3 (
     'DEFAULT/enable_metadata_proxy':            value => $enable_metadata_proxy;
     'DEFAULT/router_delete_namespaces':         value => $router_delete_namespaces;
     'DEFAULT/agent_mode':                       value => $agent_mode;
+  }
+
+  if $use_namespaces != undef {
+    warning('The use_namespaces parameter is deprecated and will be removed in future releases')
+    neutron_l3_agent_config {
+      'DEFAULT/use_namespaces':                 value => $use_namespaces;
+    }
   }
 
   if $network_device_mtu {
@@ -180,7 +190,7 @@ class neutron::agents::l3 (
       ensure  => $package_ensure,
       name    => $::neutron::params::l3_agent_package,
       require => Package['neutron'],
-      tag     => 'openstack',
+      tag     => ['openstack', 'neutron-package'],
     }
   } else {
     # Some platforms (RedHat) does not provide a neutron L3 agent package.
@@ -194,6 +204,10 @@ class neutron::agents::l3 (
     } else {
       $service_ensure = 'stopped'
     }
+    Package['neutron'] ~> Service['neutron-l3']
+    if $::neutron::params::l3_agent_package {
+      Package['neutron-l3'] ~> Service['neutron-l3']
+    }
   }
 
   service { 'neutron-l3':
@@ -201,5 +215,6 @@ class neutron::agents::l3 (
     name    => $::neutron::params::l3_agent_service,
     enable  => $enabled,
     require => Class['neutron'],
+    tag     => 'neutron-service',
   }
 }
