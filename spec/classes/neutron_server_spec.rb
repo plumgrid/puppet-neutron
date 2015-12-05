@@ -49,17 +49,7 @@ describe 'neutron::server' do
       default_params.merge(params)
     end
 
-    it 'should perform default database configuration of' do
-      is_expected.to contain_neutron_config('database/connection').with_value(p[:database_connection])
-      is_expected.to contain_neutron_config('database/connection').with_secret( true )
-      is_expected.to contain_neutron_config('database/max_retries').with_value(p[:database_max_retries])
-      is_expected.to contain_neutron_config('database/idle_timeout').with_value(p[:database_idle_timeout])
-      is_expected.to contain_neutron_config('database/retry_interval').with_value(p[:database_retry_interval])
-      is_expected.to contain_neutron_config('database/min_pool_size').with_value(p[:database_min_pool_size])
-      is_expected.to contain_neutron_config('database/max_pool_size').with_value(p[:database_max_pool_size])
-      is_expected.to contain_neutron_config('database/max_overflow').with_value(p[:database_max_overflow])
-    end
-
+    it { is_expected.to contain_class('neutron::db') }
     it { is_expected.to contain_class('neutron::params') }
     it { is_expected.to contain_class('neutron::policy') }
 
@@ -79,7 +69,7 @@ describe 'neutron::server' do
         is_expected.to contain_package('neutron-server').with(
           :name   => platform_params[:server_package],
           :ensure => p[:package_ensure],
-          :tag    => 'openstack'
+          :tag    => ['openstack', 'neutron-package'],
         )
         is_expected.to contain_package('neutron-server').with_before(/Neutron_api_config\[.+\]/)
         is_expected.to contain_package('neutron-server').with_before(/Neutron_config\[.+\]/)
@@ -94,9 +84,10 @@ describe 'neutron::server' do
         :name    => platform_params[:server_service],
         :enable  => true,
         :ensure  => 'running',
-        :require => 'Class[Neutron]'
+        :require => 'Class[Neutron]',
+        :tag     => ['neutron-service', 'neutron-db-sync-service'],
       )
-      is_expected.not_to contain_exec('neutron-db-sync')
+      is_expected.not_to contain_class('neutron::db::sync')
       is_expected.to contain_neutron_api_config('filter:authtoken/auth_admin_prefix').with(
         :ensure => 'absent'
       )
@@ -236,31 +227,17 @@ describe 'neutron::server' do
         :sync_db => true
       )
     end
-    it 'should exec neutron-db-sync' do
-      is_expected.to contain_exec('neutron-db-sync').with(
-        :command     => 'neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugin.ini upgrade head',
-        :path        => '/usr/bin',
-        :before      => 'Service[neutron-server]',
-        :subscribe   => 'Neutron_config[database/connection]',
-        :refreshonly => true
-      )
-    end
-  end
-
-  shared_examples_for 'a neutron server with database_connection specified' do
-    before do
-      params.merge!(
-        :database_connection => 'sqlite:////var/lib/neutron/ovs-TEST_parameter.sqlite'
-      )
-    end
-    it 'configures database connection' do
-      is_expected.to contain_neutron_config('database/connection').with_value(params[:database_connection])
+    it 'includes neutron::db::sync' do
+      is_expected.to contain_class('neutron::db::sync')
     end
   end
 
   describe "with custom keystone auth_uri" do
     let :facts do
-      default_facts.merge({ :osfamily => 'RedHat' })
+      default_facts.merge({
+        :osfamily               => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
     before do
       params.merge!({
@@ -279,7 +256,10 @@ describe 'neutron::server' do
 
   describe "with custom keystone identity_uri" do
     let :facts do
-      default_facts.merge({ :osfamily => 'RedHat' })
+      default_facts.merge({
+        :osfamily               => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
     before do
       params.merge!({
@@ -298,7 +278,10 @@ describe 'neutron::server' do
 
   describe "with custom keystone identity_uri and auth_uri" do
     let :facts do
-      default_facts.merge({ :osfamily => 'RedHat' })
+      default_facts.merge({
+        :osfamily => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
     before do
       params.merge!({
@@ -318,7 +301,10 @@ describe 'neutron::server' do
 
   describe "with custom auth region" do
     let :facts do
-      default_facts.merge({ :osfamily => 'RedHat' })
+      default_facts.merge({
+        :osfamily               => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
     before do
       params.merge!({
@@ -346,15 +332,16 @@ describe 'neutron::server' do
     it_configures 'a neutron server with broken authentication'
     it_configures 'a neutron server with auth_admin_prefix set'
     it_configures 'a neutron server with some incorrect auth_admin_prefix set'
-    it_configures 'a neutron server with database_connection specified'
     it_configures 'a neutron server without database synchronization'
   end
 
   context 'on RedHat platforms' do
     let :facts do
       default_facts.merge(
-        { :osfamily => 'RedHat',
-          :processorcount => '2' })
+        { :osfamily               => 'RedHat',
+          :operatingsystemrelease => '7',
+          :processorcount         => '2'
+      })
     end
 
     let :platform_params do
@@ -365,7 +352,6 @@ describe 'neutron::server' do
     it_configures 'a neutron server with broken authentication'
     it_configures 'a neutron server with auth_admin_prefix set'
     it_configures 'a neutron server with some incorrect auth_admin_prefix set'
-    it_configures 'a neutron server with database_connection specified'
     it_configures 'a neutron server without database synchronization'
   end
 end

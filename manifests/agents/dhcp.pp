@@ -41,18 +41,13 @@
 #   Addresses bug: https://bugs.launchpad.net/neutron/+bug/1182616
 #   Note: This can safely be removed once the module only targets the Havana release.
 #
-# [*use_namespaces*]
-#   (optional) Allow overlapping IP (Must have kernel build with
-#   CONFIG_NET_NS=y and iproute2 package that supports namespaces).
-#   Defaults to true.
-#
 # [*dnsmasq_config_file*]
 #   (optional) Override the default dnsmasq settings with this file.
 #   Defaults to undef
 #
 # [*dhcp_delete_namespaces*]
 #   (optional) Delete namespace after removing a dhcp server
-#   Defaults to false.
+#   Defaults to true.
 #
 # [*enable_isolated_metadata*]
 #   (optional) enable metadata support on isolated networks.
@@ -65,22 +60,36 @@
 #   This option requires enable_isolated_metadata = True
 #   Defaults to false.
 #
+# [*dhcp_broadcast_reply*]
+#  (optional) Use broadcast in DHCP replies
+#  Defaults to false.
+#
+# === Deprecated Parameters
+#
+# [*use_namespaces*]
+#   (optional) Deprecated. 'True' value will be enforced in future releases.
+#   Allow overlapping IP (Must have kernel build with
+#   CONFIG_NET_NS=y and iproute2 package that supports namespaces).
+#   Defaults to undef.
+#
 class neutron::agents::dhcp (
-  $package_ensure         = present,
-  $enabled                = true,
-  $manage_service         = true,
-  $debug                  = false,
-  $state_path             = '/var/lib/neutron',
-  $resync_interval        = 30,
-  $interface_driver       = 'neutron.agent.linux.interface.OVSInterfaceDriver',
-  $dhcp_domain            = 'openstacklocal',
-  $dhcp_driver            = 'neutron.agent.linux.dhcp.Dnsmasq',
-  $root_helper            = 'sudo neutron-rootwrap /etc/neutron/rootwrap.conf',
-  $use_namespaces         = true,
-  $dnsmasq_config_file    = undef,
-  $dhcp_delete_namespaces = false,
+  $package_ensure           = present,
+  $enabled                  = true,
+  $manage_service           = true,
+  $debug                    = false,
+  $state_path               = '/var/lib/neutron',
+  $resync_interval          = 30,
+  $interface_driver         = 'neutron.agent.linux.interface.OVSInterfaceDriver',
+  $dhcp_domain              = 'openstacklocal',
+  $dhcp_driver              = 'neutron.agent.linux.dhcp.Dnsmasq',
+  $root_helper              = 'sudo neutron-rootwrap /etc/neutron/rootwrap.conf',
+  $dnsmasq_config_file      = undef,
+  $dhcp_delete_namespaces   = true,
   $enable_isolated_metadata = false,
-  $enable_metadata_network  = false
+  $enable_metadata_network  = false,
+  $dhcp_broadcast_reply     = false,
+  # DEPRECATED PARAMETERS
+  $use_namespaces           = undef,
 ) {
 
   include ::neutron::params
@@ -120,9 +129,16 @@ class neutron::agents::dhcp (
     'DEFAULT/interface_driver':       value => $interface_driver;
     'DEFAULT/dhcp_domain':            value => $dhcp_domain;
     'DEFAULT/dhcp_driver':            value => $dhcp_driver;
-    'DEFAULT/use_namespaces':         value => $use_namespaces;
     'DEFAULT/root_helper':            value => $root_helper;
     'DEFAULT/dhcp_delete_namespaces': value => $dhcp_delete_namespaces;
+    'DEFAULT/dhcp_broadcast_reply':   value => $dhcp_broadcast_reply;
+  }
+
+  if $use_namespaces != undef {
+    warning('The use_namespaces parameter is deprecated and will be removed in future releases')
+    neutron_dhcp_agent_config {
+      'DEFAULT/use_namespaces':       value => $use_namespaces;
+    }
   }
 
   if $dnsmasq_config_file {
@@ -142,7 +158,7 @@ class neutron::agents::dhcp (
     package { 'neutron-dhcp-agent':
       ensure => $package_ensure,
       name   => $::neutron::params::dhcp_agent_package,
-      tag    => 'openstack',
+      tag    => ['openstack', 'neutron-package'],
     }
   } else {
     # Some platforms (RedHat) do not provide a neutron DHCP agent package.
@@ -156,6 +172,10 @@ class neutron::agents::dhcp (
     } else {
       $service_ensure = 'stopped'
     }
+    Package['neutron'] ~> Service['neutron-dhcp-service']
+    if $::neutron::params::dhcp_agent_package {
+      Package['neutron-dhcp-agent'] ~> Service['neutron-dhcp-service']
+    }
   }
 
   service { 'neutron-dhcp-service':
@@ -163,5 +183,6 @@ class neutron::agents::dhcp (
     name    => $::neutron::params::dhcp_agent_service,
     enable  => $enabled,
     require => Class['neutron'],
+    tag     => 'neutron-service',
   }
 }

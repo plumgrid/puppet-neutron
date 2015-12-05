@@ -21,6 +21,10 @@
 #   To be specified if planning to use logical routers with external gateways.
 #   Defaults to None.
 #
+# [*package_ensure*]
+#   (optional) Ensure state for package.
+#   Defaults to 'present'.
+#
 class neutron::plugins::nvp (
   $default_tz_uuid,
   $nvp_controllers,
@@ -33,7 +37,6 @@ class neutron::plugins::nvp (
   include ::neutron::params
 
   Package['neutron'] -> Package['neutron-plugin-nvp']
-  Package['neutron-plugin-nvp'] -> Neutron_plugin_nvp<||>
   Neutron_plugin_nvp<||> ~> Service<| title == 'neutron-server' |>
   Package['neutron-plugin-nvp'] -> Service<| title == 'neutron-server' |>
 

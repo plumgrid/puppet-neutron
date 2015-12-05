@@ -9,6 +9,17 @@ $LOAD_PATH.push(
     'inifile',
     'lib')
 )
+$LOAD_PATH.push(
+  File.join(
+    File.dirname(__FILE__),
+    '..',
+    '..',
+    '..',
+    'fixtures',
+    'modules',
+    'openstacklib',
+    'lib')
+)
 
 require 'spec_helper'
 
@@ -25,11 +36,11 @@ describe provider_class do
 
   [ 'RedHat', 'Debian' ].each do |os|
     context "on #{os} with default setting" do
-      it 'it should fall back to default and use ovs_neutron_plugin.ini' do
+      it 'it should fall back to default and use plugins/ml2/openvswitch_agent.ini' do
         Facter.fact(:operatingsystem).stubs(:value).returns("#{os}")
         expect(provider.section).to eq('DEFAULT')
         expect(provider.setting).to eq('foo')
-        expect(provider.file_path).to eq('/etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini')
+        expect(provider.file_path).to eq('/etc/neutron/plugins/ml2/openvswitch_agent.ini')
       end
     end
   end

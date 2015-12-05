@@ -52,10 +52,9 @@ describe 'neutron::agents::ml2::linuxbridge' do
         is_expected.to contain_package('neutron-plugin-linuxbridge-agent').with(
           :name   => linuxbridge_agent_package,
           :ensure => default_params[:package_ensure],
-          :tag    => 'openstack'
+          :tag    => ['openstack', 'neutron-package'],
         )
 
-        is_expected.to contain_package('neutron-plugin-linuxbridge-agent').with_before(/Neutron_agent_linuxbridge\[.+\]/)
       end
 
       it 'configures neutron linuxbridge agent service' do
@@ -63,8 +62,10 @@ describe 'neutron::agents::ml2::linuxbridge' do
           :name    => platform_params[:linuxbridge_agent_service],
           :enable  => true,
           :ensure  => 'running',
-          :require => 'Class[Neutron]'
+          :require => 'Class[Neutron]',
+          :tag     => 'neutron-service',
         )
+        is_expected.to contain_service('neutron-plugin-linuxbridge-agent').that_subscribes_to( [ 'Package[neutron]', 'Package[neutron-plugin-linuxbridge-agent]' ] )
       end
 
       context 'with manage_service as false' do
@@ -161,7 +162,10 @@ describe 'neutron::agents::ml2::linuxbridge' do
 
   context 'on RedHat platforms' do
     let :facts do
-      default_facts.merge({ :osfamily => 'RedHat' })
+      default_facts.merge({
+        :osfamily               => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
 
     let :platform_params do

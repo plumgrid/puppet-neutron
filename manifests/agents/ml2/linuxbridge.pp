@@ -78,7 +78,6 @@ class neutron::agents::ml2::linuxbridge (
 
   include ::neutron::params
 
-  Package['neutron-plugin-linuxbridge-agent'] -> Neutron_agent_linuxbridge<||>
   Neutron_agent_linuxbridge<||> ~> Service['neutron-plugin-linuxbridge-agent']
 
   if ('vxlan' in $tunnel_types) {
@@ -134,7 +133,7 @@ class neutron::agents::ml2::linuxbridge (
     package { 'neutron-plugin-linuxbridge-agent':
       ensure => $package_ensure,
       name   => $::neutron::params::linuxbridge_agent_package,
-      tag    => 'openstack',
+      tag    => ['openstack', 'neutron-package'],
     }
   } else {
     # Some platforms (RedHat) do not provide a separate
@@ -143,7 +142,7 @@ class neutron::agents::ml2::linuxbridge (
       package { 'neutron-plugin-linuxbridge-agent':
         ensure => $package_ensure,
         name   => $::neutron::params::linuxbridge_server_package,
-        tag    => 'openstack',
+        tag    => ['openstack', 'neutron-package'],
       }
     }
   }
@@ -154,12 +153,15 @@ class neutron::agents::ml2::linuxbridge (
     } else {
       $service_ensure = 'stopped'
     }
+    Package['neutron'] ~> Service['neutron-plugin-linuxbridge-agent']
+    Package['neutron-plugin-linuxbridge-agent'] ~> Service['neutron-plugin-linuxbridge-agent']
   }
 
   service { 'neutron-plugin-linuxbridge-agent':
     ensure  => $service_ensure,
     name    => $::neutron::params::linuxbridge_agent_service,
     enable  => $enabled,
-    require => Class['neutron']
+    require => Class['neutron'],
+    tag     => 'neutron-service',
   }
 }

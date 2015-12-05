@@ -37,7 +37,7 @@
 # [*interface_driver*]
 #  (optional) Defaults to 'neutron.agent.linux.interface.OVSInterfaceDriver'.
 #
-# [*external_network_bridge]
+# [*external_network_bridge*]
 #  (optional) Defaults to undef
 #
 # [*ipsec_status_check_interval*]
@@ -92,14 +92,11 @@ class neutron::agents::vpnaas (
 
   if $::neutron::params::vpnaas_agent_package {
     Package['neutron']            -> Package['neutron-vpnaas-agent']
-    Package['neutron-vpnaas-agent'] -> Neutron_vpnaas_agent_config<||>
     package { 'neutron-vpnaas-agent':
       ensure => $package_ensure,
       name   => $::neutron::params::vpnaas_agent_package,
-      tag    => 'openstack',
+      tag    => ['openstack', 'neutron-package'],
     }
-  } else {
-    Package['neutron'] -> Neutron_vpnaas_agent_config<||>
   }
 
   if $manage_service {
@@ -108,6 +105,10 @@ class neutron::agents::vpnaas (
     } else {
       $service_ensure = 'stopped'
     }
+    Package['neutron'] ~> Service['neutron-vpnaas-service']
+    if $::neutron::params::vpnaas_agent_package {
+      Package['neutron-vpnaas-agent'] ~> Service['neutron-vpnaas-service']
+    }
   }
 
   service { 'neutron-vpnaas-service':
@@ -115,5 +116,6 @@ class neutron::agents::vpnaas (
     name    => $::neutron::params::vpnaas_agent_service,
     enable  => $enabled,
     require => Class['neutron'],
+    tag     => 'neutron-service',
   }
 }

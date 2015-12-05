@@ -17,7 +17,28 @@
 #
 # neutron::plugins::ml2::type_driver used by neutron::plugins::ml2
 #
-
+#  === Parameters:
+#
+# [*flat_networks*]
+#  (required) List of physical_network names with which flat networks can be created.
+#  Use * to allow flat networks with arbitrary physical_network names.
+#
+# [*tunnel_id_ranges*]
+#  (required) Comma-separated list of <tun_min>:<tun_max> tuples enumerating ranges
+#  of GRE tunnel IDs that are available for tenant network allocation
+#
+# [*network_vlan_ranges*]
+#  (required) List of <physical_network>:<vlan_min>:<vlan_max> or <physical_network>
+#  specifying physical_network names usable for VLAN provider and tenant networks, as
+#  well as ranges of VLAN tags on each available for allocation to tenant networks.
+#
+# [*vni_ranges*]
+#  (required) Comma-separated list of <vni_min> tuples enumerating ranges of VXLAN VNI IDs
+#  that are available for tenant network allocation.
+#
+# [*vxlan_group*]
+#  (required) Multicast group for VXLAN. If unset, disables VXLAN multicast mode.
+#
 define neutron::plugins::ml2::type_driver (
   $flat_networks,
   $tunnel_id_ranges,
@@ -27,7 +48,7 @@ define neutron::plugins::ml2::type_driver (
 ){
   if ($name == 'flat') {
     neutron_plugin_ml2 {
-      'ml2_type_flat/flat_networks': value => join($flat_networks, ',');
+      'ml2_type_flat/flat_networks': value => join(any2array($flat_networks), ',');
     }
   }
   elsif ($name == 'gre') {
@@ -39,7 +60,7 @@ define neutron::plugins::ml2::type_driver (
     validate_tunnel_id_ranges($tunnel_id_ranges)
 
     neutron_plugin_ml2 {
-      'ml2_type_gre/tunnel_id_ranges': value => join($tunnel_id_ranges, ',');
+      'ml2_type_gre/tunnel_id_ranges': value => join(any2array($tunnel_id_ranges), ',');
     }
   }
   elsif ($name == 'vlan') {
@@ -51,7 +72,7 @@ define neutron::plugins::ml2::type_driver (
     validate_network_vlan_ranges($network_vlan_ranges)
 
     neutron_plugin_ml2 {
-      'ml2_type_vlan/network_vlan_ranges': value => join($network_vlan_ranges, ',');
+      'ml2_type_vlan/network_vlan_ranges': value => join(any2array($network_vlan_ranges), ',');
     }
   }
   elsif ($name == 'vxlan') {
@@ -77,11 +98,14 @@ define neutron::plugins::ml2::type_driver (
 
     neutron_plugin_ml2 {
       'ml2_type_vxlan/vxlan_group': value => $vxlan_group;
-      'ml2_type_vxlan/vni_ranges':  value => join($vni_ranges, ',');
+      'ml2_type_vxlan/vni_ranges':  value => join(any2array($vni_ranges), ',');
     }
   }
   elsif ($name == 'local') {
     warning('local type_driver is useful only for single-box, because it provides no connectivity between hosts')
+  }
+  elsif ($name == 'nexus_vxlan') {
+    # Nexus_vxlan type driver has its own class separate from this one
   }
   else {
     # detect an invalid type_drivers value

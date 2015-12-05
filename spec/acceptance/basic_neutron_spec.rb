@@ -6,41 +6,11 @@ describe 'basic neutron' do
 
     it 'should work with no errors' do
       pp= <<-EOS
-      Exec { logoutput => 'on_failure' }
-
-      # Common resources
-      case $::osfamily {
-        'Debian': {
-          include ::apt
-          class { '::openstack_extras::repo::debian::ubuntu':
-            release         => 'kilo',
-            package_require => true,
-          }
-          $package_provider = 'apt'
-        }
-        'RedHat': {
-          class { '::openstack_extras::repo::redhat::redhat':
-            release => 'kilo',
-          }
-          package { 'openstack-selinux': ensure => 'latest' }
-          $package_provider = 'yum'
-        }
-        default: {
-          fail("Unsupported osfamily (${::osfamily})")
-        }
-      }
-
-      class { '::mysql::server': }
-
-      class { '::rabbitmq':
-        delete_guest_user => true,
-        package_provider  => $package_provider,
-      }
-
-      rabbitmq_vhost { '/':
-        provider => 'rabbitmqctl',
-        require  => Class['rabbitmq'],
-      }
+      include ::openstack_integration
+      include ::openstack_integration::repos
+      include ::openstack_integration::rabbitmq
+      include ::openstack_integration::mysql
+      include ::openstack_integration::keystone
 
       rabbitmq_user { 'neutron':
         admin    => true,
@@ -57,26 +27,6 @@ describe 'basic neutron' do
         require              => Class['rabbitmq'],
       }
 
-      # Keystone resources, needed by Neutron to run
-      class { '::keystone::db::mysql':
-        password => 'keystone',
-      }
-      class { '::keystone':
-        verbose             => true,
-        debug               => true,
-        database_connection => 'mysql://keystone:keystone@127.0.0.1/keystone',
-        admin_token         => 'admin_token',
-        enabled             => true,
-      }
-      class { '::keystone::roles::admin':
-        email    => 'test@example.tld',
-        password => 'a_big_secret',
-      }
-      class { '::keystone::endpoint':
-        public_url => "https://${::fqdn}:5000/",
-        admin_url  => "https://${::fqdn}:35357/",
-      }
-
       # Neutron resources
       class { '::neutron':
         rabbit_user           => 'neutron',
@@ -84,9 +34,11 @@ describe 'basic neutron' do
         rabbit_host           => '127.0.0.1',
         allow_overlapping_ips => true,
         core_plugin           => 'ml2',
+        debug                 => true,
+        verbose               => true,
         service_plugins => [
           'neutron.services.l3_router.l3_router_plugin.L3RouterPlugin',
-          'neutron.services.loadbalancer.plugin.LoadBalancerPlugin',
+          'neutron_lbaas.services.loadbalancer.plugin.LoadBalancerPlugin',
           'neutron.services.metering.metering_plugin.MeteringPlugin',
         ],
       }
@@ -104,12 +56,12 @@ describe 'basic neutron' do
       }
       class { '::neutron::client': }
       class { '::neutron::quota': }
-      class { '::neutron::agents::dhcp': }
-      class { '::neutron::agents::l3': }
+      class { '::neutron::agents::dhcp': debug => true }
+      class { '::neutron::agents::l3': debug => true }
       class { '::neutron::agents::lbaas':
-        device_driver => 'neutron_lbaas.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver',
+        debug => true,
       }
-      class { '::neutron::agents::metering': }
+      class { '::neutron::agents::metering': debug => true }
       class { '::neutron::agents::ml2::ovs':
         enable_tunneling => true,
         local_ip         => '127.0.0.1',
@@ -118,14 +70,24 @@ describe 'basic neutron' do
       class { '::neutron::plugins::ml2':
         type_drivers         => ['vxlan'],
         tenant_network_types => ['vxlan'],
-        mechanism_drivers    => ['openvswitch']
+        mechanism_drivers    => ['openvswitch', 'sriovnicswitch']
       }
+      class { '::neutron::agents::ml2::sriov': }
       EOS
 
 
       # Run it twice and test for idempotency
       apply_manifest(pp, :catch_failures => true)
       apply_manifest(pp, :catch_changes => true)
+    end
+
+    describe 'test Neutron OVS agent bridges' do
+      it 'should list OVS bridges' do
+        shell("ovs-vsctl show") do |r|
+          expect(r.stdout).to match(/br-int/)
+          expect(r.stdout).to match(/br-tun/)
+        end
+      end
     end
 
   end

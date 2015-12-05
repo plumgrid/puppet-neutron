@@ -32,11 +32,13 @@ describe 'neutron::plugins::ml2' do
     { :type_drivers          => ['local', 'flat', 'vlan', 'gre', 'vxlan'],
       :tenant_network_types  => ['local', 'flat', 'vlan', 'gre', 'vxlan'],
       :mechanism_drivers     => ['openvswitch', 'linuxbridge'],
-      :flat_networks         => ['*'],
-      :network_vlan_ranges   => ['10:50'],
-      :tunnel_id_ranges      => ['20:100'],
+      :flat_networks         => '*',
+      :network_vlan_ranges   => '10:50',
+      :tunnel_id_ranges      => '20:100',
       :vxlan_group           => '224.0.0.1',
-      :vni_ranges            => ['10:100'],
+      :vni_ranges            => '10:100',
+      :path_mtu              => '0',
+      :physical_network_mtus => '',
       :package_ensure        => 'present' }
   end
 
@@ -65,6 +67,8 @@ describe 'neutron::plugins::ml2' do
       is_expected.to contain_neutron_plugin_ml2('ml2/type_drivers').with_value(p[:type_drivers].join(','))
       is_expected.to contain_neutron_plugin_ml2('ml2/tenant_network_types').with_value(p[:tenant_network_types].join(','))
       is_expected.to contain_neutron_plugin_ml2('ml2/mechanism_drivers').with_value(p[:mechanism_drivers].join(','))
+      is_expected.to contain_neutron_plugin_ml2('ml2/path_mtu').with_value(p[:path_mtu])
+      is_expected.to contain_neutron_plugin_ml2('ml2/physical_network_mtus').with_ensure('absent')
     end
 
     it 'creates plugin symbolic link' do
@@ -81,7 +85,6 @@ describe 'neutron::plugins::ml2' do
           :ensure => p[:package_ensure],
           :tag    => 'openstack'
         )
-        is_expected.to contain_package('neutron-plugin-ml2').with_before(/Neutron_plugin_ml2\[.+\]/)
       end
     end
 
@@ -170,6 +173,26 @@ describe 'neutron::plugins::ml2' do
       it_raises  'a Puppet::Error', /vni ranges are invalid./
     end
 
+    context 'with path_mtu set' do
+      before :each do
+        params.merge!(:path_mtu => '9000')
+      end
+
+      it 'should set the path_mtu on the ml2 plugin' do
+        is_expected.to contain_neutron_plugin_ml2('ml2/path_mtu').with_value(p[:path_mtu])
+      end
+    end
+
+    context 'with physical_network_mtus set' do
+      before :each do
+        params.merge!(:physical_network_mtus => ['physnet1:9000'])
+      end
+
+      it 'should set the physical_network_mtus on the ml2 plugin' do
+        is_expected.to contain_neutron_plugin_ml2('ml2/physical_network_mtus').with_value(p[:physical_network_mtus].join(','))
+      end
+    end
+
     context 'when overriding package ensure state' do
       before :each do
         params.merge!(:package_ensure => 'latest')
@@ -193,8 +216,8 @@ describe 'neutron::plugins::ml2' do
         )
       end
       it 'configures sriov mechanism driver with agent_enabled' do
-        is_expected.to contain_neutron_plugin_ml2('ml2_sriov/supported_pci_vendor_dev').with_value(['15b3:1004,8086:10ca'])
-        is_expected.to contain_neutron_plugin_ml2('ml2_sriov/agent_required').with_value('true')
+        is_expected.to contain_neutron_plugin_sriov('ml2_sriov/agent_required').with_value('true')
+        is_expected.to contain_neutron_plugin_sriov('ml2_sriov/supported_pci_vendor_devs').with_value(['15b3:1004,8086:10ca'])
       end
     end
 
@@ -243,7 +266,10 @@ describe 'neutron::plugins::ml2' do
 
   context 'on RedHat platforms' do
     let :facts do
-      default_facts.merge({ :osfamily => 'RedHat' })
+      default_facts.merge({
+        :osfamily               => 'RedHat',
+        :operatingsystemrelease => '7'
+      })
     end
 
     let :platform_params do

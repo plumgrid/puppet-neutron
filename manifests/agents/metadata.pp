@@ -94,7 +94,6 @@ class neutron::agents::metadata (
 
   include ::neutron::params
 
-  Package['neutron'] -> Neutron_metadata_agent_config<||>
   Neutron_config<||> ~> Service['neutron-metadata']
   Neutron_metadata_agent_config<||> ~> Service['neutron-metadata']
 
@@ -144,13 +143,12 @@ class neutron::agents::metadata (
   }
 
   if $::neutron::params::metadata_agent_package {
-    Package['neutron-metadata'] -> Neutron_metadata_agent_config<||>
     Package['neutron-metadata'] -> Service['neutron-metadata']
     package { 'neutron-metadata':
       ensure  => $package_ensure,
       name    => $::neutron::params::metadata_agent_package,
       require => Package['neutron'],
-      tag     => 'openstack',
+      tag     => ['openstack', 'neutron-package'],
     }
   }
 
@@ -160,6 +158,10 @@ class neutron::agents::metadata (
     } else {
       $service_ensure = 'stopped'
     }
+    Package['neutron'] ~> Service['neutron-metadata']
+    if $::neutron::params::metadata_agent_package {
+      Package['neutron-metadata'] ~> Service['neutron-metadata']
+    }
   }
 
   service { 'neutron-metadata':
@@ -167,5 +169,6 @@ class neutron::agents::metadata (
     name    => $::neutron::params::metadata_agent_service,
     enable  => $enabled,
     require => Class['neutron'],
+    tag     => 'neutron-service',
   }
 }

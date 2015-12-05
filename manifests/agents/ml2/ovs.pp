@@ -38,7 +38,7 @@
 #   bridge mapping.
 #   Defaults to empty list
 #
-# [*bridge_mapping*]
+# [*bridge_mappings*]
 #   (optional) List of <physical_network>:<bridge>
 #   Defaults to empty list
 #
@@ -92,6 +92,23 @@
 #   for distributed virtual routing.
 #   Defaults to false
 #
+# [*drop_flows_on_start*]
+#   (optional) Set to True to drop all flows during agent start for a clean
+#   flow tables resetting
+#   Defaults to false
+#
+# [*manage_vswitch*]
+#   (optional) This boolean is used to indicate if this class should manage the
+#   vswitch software installation and the ovs bridges/ports from the
+#   $bridge_mappings parameter. If manage_vswitch is set to true, then we will
+#   require the vswitch::ovs and configure the ovs bridges/ports using the
+#   mappings provided as part of the $bridge_mappings parameters.
+#   Defaults to true
+#
+# [*prevent_arp_spoofing*]
+#   (optional) Enable or not ARP Spoofing Protection
+#   Defaults to true
+#
 class neutron::agents::ml2::ovs (
   $package_ensure             = 'present',
   $enabled                    = true,
@@ -109,20 +126,24 @@ class neutron::agents::ml2::ovs (
   $arp_responder              = false,
   $firewall_driver            = 'neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver',
   $enable_distributed_routing = false,
+  $drop_flows_on_start        = false,
+  $manage_vswitch             = true,
+  $prevent_arp_spoofing       = true,
 ) {
 
   include ::neutron::params
-  require vswitch::ovs
+  if $manage_vswitch {
+    require vswitch::ovs
+  }
 
   if $enable_tunneling and ! $local_ip {
     fail('Local ip for ovs agent must be set when tunneling is enabled')
   }
 
-  if $enable_distributed_routing and ! $l2_population {
-    fail('L2 population must be enabled when DVR is enabled')
+  if $enable_tunneling and $enable_distributed_routing and ! $l2_population {
+    fail('L2 population must be enabled when DVR and tunneling are enabled')
   }
 
-  Package['neutron-ovs-agent'] -> Neutron_agent_ovs<||>
   Neutron_agent_ovs<||> ~> Service['neutron-ovs-agent-service']
 
   if ($bridge_mappings != []) {
@@ -144,11 +165,13 @@ class neutron::agents::ml2::ovs (
     neutron_agent_ovs {
       'ovs/bridge_mappings': value => $br_map_str;
     }
-    neutron::plugins::ovs::bridge{ $bridge_mappings:
-      before => Service['neutron-ovs-agent-service'],
-    }
-    neutron::plugins::ovs::port{ $bridge_uplinks:
-      before => Service['neutron-ovs-agent-service'],
+    if ($manage_vswitch) {
+      neutron::plugins::ovs::bridge{ $bridge_mappings:
+        before => Service['neutron-ovs-agent-service'],
+      }
+      neutron::plugins::ovs::port{ $bridge_uplinks:
+        before => Service['neutron-ovs-agent-service'],
+      }
     }
   }
 
@@ -157,6 +180,8 @@ class neutron::agents::ml2::ovs (
     'agent/l2_population':              value => $l2_population;
     'agent/arp_responder':              value => $arp_responder;
     'agent/enable_distributed_routing': value => $enable_distributed_routing;
+    'agent/drop_flows_on_start':        value => $drop_flows_on_start;
+    'agent/prevent_arp_spoofing':       value => $prevent_arp_spoofing;
     'ovs/integration_bridge':           value => $integration_bridge;
   }
 
@@ -197,7 +222,7 @@ class neutron::agents::ml2::ovs (
     package { 'neutron-ovs-agent':
       ensure => $package_ensure,
       name   => $::neutron::params::ovs_agent_package,
-      tag    => 'openstack',
+      tag    => ['openstack', 'neutron-package'],
     }
   } else {
     # Some platforms (RedHat) do not provide a separate
@@ -207,7 +232,7 @@ class neutron::agents::ml2::ovs (
       package { 'neutron-ovs-agent':
         ensure => $package_ensure,
         name   => $::neutron::params::ovs_server_package,
-        tag    => 'openstack',
+        tag    => ['openstack', 'neutron-package'],
       }
     }
   }
@@ -218,6 +243,8 @@ class neutron::agents::ml2::ovs (
     } else {
       $service_ensure = 'stopped'
     }
+    Package['neutron'] ~> Service['neutron-ovs-agent-service']
+    Package['neutron-ovs-agent'] ~> Service['neutron-ovs-agent-service']
   }
 
   service { 'neutron-ovs-agent-service':
@@ -225,6 +252,7 @@ class neutron::agents::ml2::ovs (
     name    => $::neutron::params::ovs_agent_service,
     enable  => $enabled,
     require => Class['neutron'],
+    tag     => 'neutron-service',
   }
 
   if $::neutron::params::ovs_cleanup_service {
